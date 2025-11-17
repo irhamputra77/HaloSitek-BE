@@ -15,3 +15,5 @@ dist
 
 # Local development
 package-lock.json
+/src/generated/prisma
+
