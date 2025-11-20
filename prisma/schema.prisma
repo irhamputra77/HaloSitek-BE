@@ -4,6 +4,9 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
+// Prisma Schema for Halositek
+// Database: PostgreSQL
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,10 +16,233 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================
+// ENUMS
+// ============================================
+
+enum ArchitectStatus {
+  UNPAID     // Belum bayar - baru registrasi
+  ACTIVE     // Sudah bayar, akun aktif
+  BANNED     // Diblokir oleh admin
+}
+
+enum TransactionStatus {
+  PENDING    // Menunggu pembayaran
+  SUCCESS    // Pembayaran berhasil
+  FAILED     // Pembayaran gagal
+  EXPIRED    // Token/transaksi kadaluarsa (>24 jam)
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  E_WALLET
+  CREDIT_CARD
+  QRIS
+  RETAIL_OUTLET
+  OTHER
+}
+
+// ============================================
+// ARCHITECT DOMAIN
+// ============================================
+
+model Architect {
+  id                    String            @id @default(uuid())
+  
+  // Step 1: Informasi Dasar
+  email                 String            @unique
+  password              String            // Hashed with bcrypt
+  name                  String
+  phone                 String
+  profilePictureUrl     String?           // Path to uploaded file
+  
+  // Step 2: Kualifikasi Profesional
+  tahunPengalaman       Int?              // Tahun pengalaman kerja
+  areaPengalaman        String?           // Area pengalaman kunci (text)
+  keahlianKhusus        String?           // JSON array of tags: ["AutoCAD", "SketchUp", "Revit"]
+  
+  // Account Status
+  status                ArchitectStatus   @default(UNPAID)
+  emailVerified         Boolean           @default(false)
+  emailVerifiedAt       DateTime?
+  
+  // Timestamps
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  
+  // Relations
+  certifications        Certification[]   // Multiple certifications
+  portfolioLinks        PortfolioLink[]   // Multiple portfolio URLs
+  transactions          Transaction[]     // Payment history
+  designs               Design[]          // Uploaded designs
+  
+  @@map("architects")
+  @@index([email])
+  @@index([status])
+}
+
+// ============================================
+// CERTIFICATION (Step 2: Sertifikasi)
+// ============================================
+
+model Certification {
+  id                String      @id @default(uuid())
+  architectId       String
+  architect         Architect   @relation(fields: [architectId], references: [id], onDelete: Cascade)
+  
+  // Certification Details
+  certificationName String      // e.g., "Arsitek Berlisensi"
+  penerbit          String      // e.g., "IAI (Ikatan Arsitek Indonesia)"
+  year              Int         // e.g., 2018
+  berkasUrl         String      // Path to uploaded certificate file (PDF/Image)
+  
+  // Timestamps
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  @@map("certifications")
+  @@index([architectId])
+}
+
+// ============================================
+// PORTFOLIO LINK (Step 2: Portofolio)
+// ============================================
+
+model PortfolioLink {
+  id          String      @id @default(uuid())
+  architectId String
+  architect   Architect   @relation(fields: [architectId], references: [id], onDelete: Cascade)
+  
+  url         String      // e.g., "https://www.behance.net/contoharsitekk"
+  order       Int         @default(0)  // Untuk sorting
+  
+  createdAt   DateTime    @default(now())
+  
+  @@map("portfolio_links")
+  @@index([architectId])
+}
+
+// ============================================
+// TRANSACTION (Payment Records)
+// ============================================
+
+model Transaction {
+  id                String            @id @default(uuid())
+  architectId       String
+  architect         Architect         @relation(fields: [architectId], references: [id], onDelete: Cascade)
+  
+  // Payment Identifiers
+  orderId           String            @unique  // Format: ARCH-{timestamp}-{random}
+  paymentToken      String            @unique  // Token untuk akses payment page
+  snapToken         String?                    // Midtrans Snap Token
+  
+  // Payment Details
+  amount            Int               @default(500000)  // Fixed: Rp 500.000
+  status            TransactionStatus @default(PENDING)
+  paymentMethod     PaymentMethod?
+  
+  // Timestamps
+  paidAt            DateTime?         // Kapan pembayaran berhasil
+  expiredAt         DateTime          // Payment link expired (24 jam dari created)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  // Midtrans Response (JSON untuk debugging)
+  midtransResponse  Json?
+  
+  @@map("transactions")
+  @@index([architectId])
+  @@index([orderId])
+  @@index([paymentToken])
+  @@index([status])
+}
+
+// ============================================
+// DESIGN (untuk domain designs - future)
+// ============================================
+
+model Design {
+  id              String    @id @default(uuid())
+  architectId     String
+  architect       Architect @relation(fields: [architectId], references: [id], onDelete: Cascade)
+  
+  // Design Details
+  title           String
+  description     String?
+  kategori        String?         // e.g., "Rumah Minimalis"
+  luas_bangunan   String?         // e.g., "120 m²"
+  luas_tanah      String?         // e.g., "200 m²"
+  
+  // Images (stored as JSON array of URLs)
+  foto_bangunan   String?         // JSON: ["url1", "url2", "url3"]
+  foto_denah      String?         // JSON: ["url1", "url2"]
+  
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("designs")
+  @@index([architectId])
+}
+
+// ============================================
+// USER DOMAIN (untuk kelengkapan)
+// ============================================
 
 model User {
-  id        Int      @id @default(autoincrement())
+  id                String    @id @default(uuid())
+  email             String    @unique
+  username          String    @unique
+  password          String
+  fullName          String
+  profilePictureUrl String?
+  
+  emailVerified     Boolean   @default(false)
+  emailVerifiedAt   DateTime?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@map("users")
+  @@index([email])
+  @@index([username])
+}
+
+// ============================================
+// ADMIN DOMAIN
+// ============================================
+
+model Admin {
+  id        String   @id @default(uuid())
   email     String   @unique
-  name      String?
+  password  String
+  fullName  String
+  role      String   @default("ADMIN")
+  
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("admins")
+  @@index([email])
+}
+
+// ============================================
+// ARSIPEDIA DOMAIN (Content Management)
+// ============================================
+
+model Arsipedia {
+  id        String   @id @default(uuid())
+  adminId   String
+  
+  title     String
+  content   String   @db.Text  // Long text content
+  status    String   @default("DRAFT") // DRAFT, PUBLISHED
+  tags      String?  // JSON array: ["Desain", "Tips", "Arsitektur"]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("arsipedia")
+  @@index([status])
+  @@index([adminId])
 }
