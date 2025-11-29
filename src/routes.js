@@ -6,7 +6,10 @@
 const express = require('express');
 const router = express.Router();
 
-// Import domain routes
+// === AUTH (user, admin, arsitek lewat facade) ===
+const authRoutes = require('./domains/auth/auth.routes');
+
+// === ARCHITECTS (dari project kedua) ===
 const architectRegistrationRoutes = require('./domains/architects/routes/architect-registration.routes');
 const webhookRoutes = require('./domains/architects/routes/webhook.routes');
 const paymentRoutes = require('./domains/architects/routes/payment.routes');
@@ -21,6 +24,8 @@ router.get('/health', (req, res) => {
 });
 
 // API routes
+router.use('/auth', authRoutes);
+
 router.use('/architects', architectRegistrationRoutes);
 router.use('/webhooks', webhookRoutes);
 router.use('/payment', paymentRoutes);
