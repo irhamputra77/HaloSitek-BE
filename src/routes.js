@@ -8,6 +8,7 @@ const router = express.Router();
 
 // Import domain routes
 const architectRegistrationRoutes = require('./domains/architects/routes/architect-registration.routes');
+const architectAuthRoutes = require('./domains/architects/routes/architect-auth.routes');
 const webhookRoutes = require('./domains/architects/routes/webhook.routes');
 const paymentRoutes = require('./domains/architects/routes/payment.routes');
 
@@ -17,11 +18,13 @@ router.get('/health', (req, res) => {
     success: true,
     message: 'API is running',
     timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
   });
 });
 
 // API routes
 router.use('/architects', architectRegistrationRoutes);
+router.use('/architects/auth', architectAuthRoutes);
 router.use('/webhooks', webhookRoutes);
 router.use('/payment', paymentRoutes);
 

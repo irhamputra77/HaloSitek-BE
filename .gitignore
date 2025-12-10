@@ -17,3 +17,5 @@ dist
 package-lock.json
 /src/generated/prisma
 
+test-key.js
+

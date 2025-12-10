@@ -6,7 +6,7 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { FileUploadError } = require('../../errors/app-errors');
+const { FileUploadError } = require('../errors/app-errors');
 
 // Ensure upload directories exist
 const ensureDirectoryExists = (directory) => {

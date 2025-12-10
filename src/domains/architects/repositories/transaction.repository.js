@@ -3,9 +3,9 @@
  * Handle database operations untuk Transaction model (Payment records)
  */
 
-const prisma = require('../../config/prisma-client');
+const prisma = require('../../../config/prisma-client');
 const BaseRepository = require('./base-repository');
-const { DatabaseError, NotFoundError } = require('../../errors/app-errors');
+const { DatabaseError, NotFoundError } = require('../../../errors/app-errors');
 
 class TransactionRepository extends BaseRepository {
   constructor() {

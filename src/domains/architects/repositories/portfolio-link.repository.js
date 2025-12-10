@@ -3,9 +3,9 @@
  * Handle database operations untuk PortfolioLink model
  */
 
-const prisma = require('../../config/prisma-client');
+const prisma = require('../../../config/prisma-client');
 const BaseRepository = require('./base-repository');
-const { DatabaseError } = require('../../errors/app-errors');
+const { DatabaseError } = require('../../../errors/app-errors');
 
 class PortfolioLinkRepository extends BaseRepository {
   constructor() {

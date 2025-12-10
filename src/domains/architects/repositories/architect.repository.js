@@ -3,9 +3,9 @@
  * Handle database operations untuk Architect model
  */
 
-const prisma = require('../../config/prisma-client');
+const prisma = require('../../../config/prisma-client');
 const BaseRepository = require('./base-repository');
-const { ConflictError, NotFoundError } = require('../../errors/app-errors');
+const { ConflictError, NotFoundError } = require('../../../errors/app-errors');
 
 class ArchitectRepository extends BaseRepository {
   constructor() {

@@ -3,13 +3,14 @@
  * Central export untuk semua services
  */
 
-// Common Services
-const tokenGeneratorService = require('../../common/services/token-generator.service');
-const emailService = require('../../common/services/email.service');
-const paymentService = require('../../common/services/payment.service');
+// Common Services (path diperbaiki)
+const tokenGeneratorService = require('../../../common/services/token-generator.service');
+const emailService = require('../../../common/services/email.service');
+const paymentService = require('../../../common/services/payment.service');
 
 // Architect Services
 const architectRegistrationService = require('./architect-registration.service');
+const architectAuthService = require('./architect-auth.service');
 const webhookService = require('./webhook.service');
 
 module.exports = {
@@ -20,5 +21,6 @@ module.exports = {
 
   // Architect Services
   architectRegistrationService,
+  architectAuthService,
   webhookService,
 };

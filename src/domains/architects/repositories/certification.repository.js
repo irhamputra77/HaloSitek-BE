@@ -3,9 +3,9 @@
  * Handle database operations untuk Certification model
  */
 
-const prisma = require('../../config/prisma-client');
+const prisma = require('../../../config/prisma-client');
 const BaseRepository = require('./base-repository');
-const { NotFoundError, DatabaseError } = require('../../errors/app-errors');
+const { NotFoundError, DatabaseError } = require('../../../errors/app-errors');
 
 class CertificationRepository extends BaseRepository {
   constructor() {

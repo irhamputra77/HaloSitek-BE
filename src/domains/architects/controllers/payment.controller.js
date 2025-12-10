@@ -3,7 +3,7 @@
  * Handle payment-related requests
  */
 
-const { paymentService } = require('../../../common/services');
+const paymentService = require('../../../common/services/payment.service');
 const ResponseFormatter = require('../../../utils/response-formatter');
 
 class PaymentController {
