@@ -110,7 +110,37 @@ class AuthMiddleware {
       return ResponseFormatter.unauthorized(res, 'Invalid or expired token');
     }
   }
+  /**
+   * Verify User Token
+   * Khusus untuk user endpoints
+   */
+  async verifyUser(req, res, next) {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        return ResponseFormatter.unauthorized(res, 'No token provided');
+      }
 
+      const token = JWTHelper.extractTokenFromHeader(authHeader);
+      if (!token) {
+        return ResponseFormatter.unauthorized(res, 'Invalid token format');
+      }
+
+      const decoded = JWTHelper.verifyToken(token);
+
+      if (decoded.role !== 'USER') {
+        return ResponseFormatter.forbidden(res, 'Access denied. Users only.');
+      }
+
+      req.user = decoded;
+      next();
+    } catch (error) {
+      if (error instanceof AuthenticationError) {
+        return ResponseFormatter.unauthorized(res, error.message);
+      }
+      return ResponseFormatter.unauthorized(res, 'Invalid or expired token');
+    }
+  }
   /**
    * Verify Admin Token
    * Khusus untuk admin endpoints

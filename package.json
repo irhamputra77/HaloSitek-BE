@@ -7,7 +7,11 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "prisma": "prisma"
+    "prisma": "prisma",
+    "seed": "node src/seeds/index.js",
+    "seed:admin": "node src/seeds/admin.seeder.js",
+    "seed:user": "node src/seeds/user.seeder.js",
+    "seed:architect": "node src/seeds/architect.seeder.js"
   },
   "repository": {
     "type": "git",
