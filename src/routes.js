@@ -13,6 +13,9 @@ const webhookRoutes = require('./domains/architects/routes/webhook.routes');
 const paymentRoutes = require('./domains/architects/routes/payment.routes');
 const userAuthRoutes = require('./domains/users/routes/user-auth.routes');
 const adminAuthRoutes = require('./domains/admins/routes/admin-auth.routes');
+const arsipediaRoutes = require('./domains/arsipedia/routes/arsipedia.routes');
+
+
 
 // Health check route
 router.get('/health', (req, res) => {
@@ -31,6 +34,7 @@ router.use('/webhooks', webhookRoutes);
 router.use('/payment', paymentRoutes);
 router.use('/users', userAuthRoutes);
 router.use('/admins', adminAuthRoutes);
+router.use('/arsipedia', arsipediaRoutes);
 
 
 module.exports = router;
