@@ -72,7 +72,7 @@ class EmailService {
       };
 
       const info = await this.transporter.sendMail(mailOptions);
-      
+
       console.log('✅ Email sent:', info.messageId);
       return info;
     } catch (error) {
@@ -90,8 +90,9 @@ class EmailService {
    * @returns {Promise<Object>} - Email info
    */
   async sendPaymentLinkEmail(architect, paymentToken, orderId, amount) {
-    const paymentUrl = `${process.env.FRONTEND_URL}/payment/${paymentToken}`;
-    
+    const paymentUrl = `${process.env.FRONTEND_URL}/payment/architect?payment_token=${encodeURIComponent(paymentToken)}`;
+
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -179,7 +180,7 @@ class EmailService {
    */
   async sendWelcomeEmail(architect) {
     const loginUrl = `${process.env.FRONTEND_URL}/login`;
-    
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -335,7 +336,7 @@ class EmailService {
    */
   async sendPaymentExpiredEmail(architect, orderId) {
     const registerUrl = `${process.env.FRONTEND_URL}/register/architect`;
-    
+
     const html = `
       <!DOCTYPE html>
       <html>
