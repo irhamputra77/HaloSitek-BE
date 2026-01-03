@@ -119,6 +119,8 @@ class ArchitectRepository extends BaseRepository {
   async activateAccount(id) {
     return await this.update(id, {
       status: 'ACTIVE',
+      emailVerified: true,
+      emailVerifiedAt: new Date(),
     });
   }
 

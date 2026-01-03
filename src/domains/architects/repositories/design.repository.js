@@ -30,6 +30,96 @@ class DesignRepository extends BaseRepository {
     }
   }
 
+
+  // =========================
+  // VIEWS (per design)
+  // =========================
+
+  async recordViewByUser(userId, designId) {
+    return prisma.viewedDesignUser.upsert({
+      where: { userId_designId: { userId, designId } },
+      create: { userId, designId, viewedCount: 1 },
+      update: { viewedCount: { increment: 1 } },
+    });
+  }
+
+  async recordViewByArchitect(architectId, designId) {
+    return prisma.viewedDesignArchitect.upsert({
+      where: { architectId_designId: { architectId, designId } },
+      create: { architectId, designId, viewedCount: 1 },
+      update: { viewedCount: { increment: 1 } },
+    });
+  }
+
+  async getViewsSummary(designId) {
+    const [uAgg, aAgg] = await Promise.all([
+      prisma.viewedDesignUser.aggregate({
+        where: { designId },
+        _sum: { viewedCount: true },
+        _count: { _all: true }, // unique viewers (jumlah row)
+      }),
+      prisma.viewedDesignArchitect.aggregate({
+        where: { designId },
+        _sum: { viewedCount: true },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const userViews = uAgg?._sum?.viewedCount || 0;
+    const archViews = aAgg?._sum?.viewedCount || 0;
+
+    const userUnique = uAgg?._count?._all || 0;
+    const archUnique = aAgg?._count?._all || 0;
+
+    return {
+      totalViews: userViews + archViews,
+      uniqueViewers: userUnique + archUnique,
+      breakdown: {
+        users: { views: userViews, unique: userUnique },
+        architects: { views: archViews, unique: archUnique },
+      },
+    };
+  }
+
+  // Optional: untuk list my-designs biar tidak N+1 query
+  async getViewsTotalsMap(designIds = []) {
+    if (!designIds.length) return {};
+
+    const [u, a] = await Promise.all([
+      prisma.viewedDesignUser.groupBy({
+        by: ["designId"],
+        where: { designId: { in: designIds } },
+        _sum: { viewedCount: true },
+        _count: { _all: true },
+      }),
+      prisma.viewedDesignArchitect.groupBy({
+        by: ["designId"],
+        where: { designId: { in: designIds } },
+        _sum: { viewedCount: true },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const map = {};
+    for (const id of designIds) {
+      map[id] = { totalViews: 0, uniqueViewers: 0 };
+    }
+
+    for (const row of u) {
+      map[row.designId] = map[row.designId] || { totalViews: 0, uniqueViewers: 0 };
+      map[row.designId].totalViews += row._sum.viewedCount || 0;
+      map[row.designId].uniqueViewers += row._count._all || 0;
+    }
+
+    for (const row of a) {
+      map[row.designId] = map[row.designId] || { totalViews: 0, uniqueViewers: 0 };
+      map[row.designId].totalViews += row._sum.viewedCount || 0;
+      map[row.designId].uniqueViewers += row._count._all || 0;
+    }
+
+    return map;
+  }
+
   /**
    * Find designs by architect ID
    * @param {String} architectId - Architect ID

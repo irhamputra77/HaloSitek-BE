@@ -40,13 +40,17 @@ class DesignController {
     try {
       const { id } = req.params;
 
-      const design = await designService.getDesignById(id, true);
+      const viewer = req.user || null;
+
+      const design = await designService.getDesignById(id, true, viewer);
 
       return ResponseFormatter.success(res, design, 'Design retrieved successfully');
     } catch (error) {
       next(error);
     }
   }
+
+
 
   /**
  * Admin Update design
@@ -157,7 +161,7 @@ class DesignController {
       const result = await designService.searchDesigns({
         q,
         kategori,
-        city: city || location, 
+        city: city || location,
         page,
         limit,
       });

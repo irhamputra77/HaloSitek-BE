@@ -34,7 +34,7 @@ class WebhookController {
       // webhook.controller.js (catch)
       console.error("❌ Webhook processing error:", error);
       return res.status(500).json({ success: false, message: "processing failed" });
-
+ 
     }
   }
 

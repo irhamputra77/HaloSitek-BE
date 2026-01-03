@@ -81,8 +81,6 @@ router.delete(
  */
 router.get("/meta/categories", designController.getKategoriList);
 
-
-
 // ============================================
 // PUBLIC ROUTES
 // ============================================
@@ -117,17 +115,20 @@ router.get('/category/:kategori', designController.getDesignsByKategori);
 
 /**
  * @route   GET /api/designs/:id
- * @desc    Get design by ID
- * @access  Public
+ * @desc    Get design by ID (public) + HIT VIEW kalau user/arsitek login
+ * @access  Public (optional auth)
+ *
+ * ✅ optionalAuth: kalau ada token -> req.user ada, kalau tidak ada -> req.user null
+ * ✅ nanti logic increment view-nya ditaruh di controller/service
  */
-router.get('/:id', designController.getDesignById);
+router.get('/:id', authMiddleware.optionalAuth, designController.getDesignById);
 
 // ============================================
 // PROTECTED ROUTES (Architect only)
 // ============================================
 
 /**
- * @route   POST /api/architects/auth/designs
+ * @route   POST /api/designs/architect/my-designs
  * @desc    Create new design
  * @access  Private (Architect only)
  */
@@ -139,7 +140,7 @@ router.post(
 );
 
 /**
- * @route   GET /api/architects/auth/designs
+ * @route   GET /api/designs/architect/my-designs
  * @desc    Get my designs
  * @access  Private (Architect only)
  */
@@ -150,7 +151,7 @@ router.get(
 );
 
 /**
- * @route   GET /api/architects/auth/designs/statistics
+ * @route   GET /api/designs/architect/my-designs/statistics
  * @desc    Get design statistics
  * @access  Private (Architect only)
  */
@@ -161,7 +162,7 @@ router.get(
 );
 
 /**
- * @route   PUT /api/architects/auth/designs/:id
+ * @route   PUT /api/designs/architect/my-designs/:id
  * @desc    Update design
  * @access  Private (Architect only)
  */
@@ -173,7 +174,7 @@ router.put(
 );
 
 /**
- * @route   DELETE /api/architects/auth/designs/:id
+ * @route   DELETE /api/designs/architect/my-designs/:id
  * @desc    Delete design
  * @access  Private (Architect only)
  */

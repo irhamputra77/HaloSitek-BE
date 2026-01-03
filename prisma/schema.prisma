@@ -71,11 +71,12 @@ model Architect {
   updatedAt DateTime @updatedAt
 
   // Relations
-  certifications Certification[] // Multiple certifications
-  portfolioLinks PortfolioLink[] // Multiple portfolio URLs
-  transactions   Transaction[] // Payment history
-  designs        Design[] // Uploaded designs
-  viewedBy       ViewedArsitek[] @relation("ArchitectViewedBy")
+  certifications         Certification[] // Multiple certifications
+  portfolioLinks         PortfolioLink[] // Multiple portfolio URLs
+  transactions           Transaction[] // Payment history
+  designs                Design[] // Uploaded designs
+  viewedBy               ViewedArsitek[]         @relation("ArchitectViewedBy")
+  viewedDesignArchitects ViewedDesignArchitect[]
 
   @@index([email])
   @@index([status])
@@ -182,6 +183,9 @@ model Design {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  viewedByUsers      ViewedDesignUser[]
+  viewedByArchitects ViewedDesignArchitect[]
+
   @@index([architectId])
   @@map("designs")
 }
@@ -201,10 +205,11 @@ model User {
   emailVerified   Boolean   @default(false)
   emailVerifiedAt DateTime?
 
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  viewedArsipedia ViewedArsipedia[] @relation("UserViewedArsipedia")
-  viewedArsitek   ViewedArsitek[]   @relation("UserViewedArsitek")
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  viewedArsipedia ViewedArsipedia[]  @relation("UserViewedArsipedia")
+  viewedArsitek   ViewedArsitek[]    @relation("UserViewedArsitek")
+  viewedDesigns   ViewedDesignUser[]
 
   @@index([email])
   @@index([username])
@@ -221,6 +226,30 @@ model ViewedArsipedia {
 
   @@id([userId, arsipediaId])
   @@index([arsipediaId])
+}
+
+model ViewedDesignUser {
+  userId      String
+  designId    String
+  viewedCount Int    @default(0)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  design Design @relation(fields: [designId], references: [id], onDelete: Cascade)
+
+  @@id([userId, designId])
+  @@index([designId])
+}
+
+model ViewedDesignArchitect {
+  architectId String
+  designId    String
+  viewedCount Int    @default(0)
+
+  architect Architect @relation(fields: [architectId], references: [id], onDelete: Cascade)
+  design    Design    @relation(fields: [designId], references: [id], onDelete: Cascade)
+
+  @@id([architectId, designId])
+  @@index([designId])
 }
 
 model ViewedArsitek {
