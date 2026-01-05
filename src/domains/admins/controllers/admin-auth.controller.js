@@ -14,9 +14,7 @@ class AdminAuthController {
   async login(req, res, next) {
     try {
       const { email, password } = req.body;
-
       const result = await adminAuthService.login({ email, password });
-
       return ResponseFormatter.success(res, result.data, result.message);
     } catch (error) {
       next(error);
@@ -30,32 +28,29 @@ class AdminAuthController {
    */
   async getProfile(req, res, next) {
     try {
-      const adminId = req.user.id; // From JWT token
-
+      const adminId = req.user.id;
       const profile = await adminAuthService.getProfile(adminId);
-
       return ResponseFormatter.success(res, profile, 'Profile retrieved successfully');
     } catch (error) {
       next(error);
     }
   }
-
   /**
    * Update Profile
    * PUT /api/admins/auth/profile
    * Protected - Requires JWT token (ADMIN role)
    */
+
   async updateProfile(req, res, next) {
     try {
-      const adminId = req.user.id; // From JWT token
-
+      const adminId = req.user.id;
       const profile = await adminAuthService.updateProfile(adminId, req.body);
-
       return ResponseFormatter.success(res, profile, 'Profile updated successfully');
     } catch (error) {
       next(error);
     }
   }
+
 
   /**
    * Change Password
@@ -64,7 +59,7 @@ class AdminAuthController {
    */
   async changePassword(req, res, next) {
     try {
-      const adminId = req.user.id; // From JWT token
+      const adminId = req.user.id;
       const { oldPassword, newPassword } = req.body;
 
       const result = await adminAuthService.changePassword(adminId, {
@@ -82,12 +77,11 @@ class AdminAuthController {
    * Refresh Token
    * POST /api/admins/auth/refresh-token
    */
+
   async refreshToken(req, res, next) {
     try {
       const { refreshToken } = req.body;
-
       const result = await adminAuthService.refreshAccessToken(refreshToken);
-
       return ResponseFormatter.success(res, result.data, 'Token refreshed successfully');
     } catch (error) {
       next(error);
@@ -101,10 +95,8 @@ class AdminAuthController {
    */
   async logout(req, res, next) {
     try {
-      const adminId = req.user.id; // From JWT token
-
+      const adminId = req.user.id;
       const result = await adminAuthService.logout(adminId);
-
       return ResponseFormatter.success(res, null, result.message);
     } catch (error) {
       next(error);
@@ -153,8 +145,8 @@ class AdminAuthController {
 
       return ResponseFormatter.success(
         res,
-        admins,                         // data dulu
-        "Admins retrieved successfully" // message
+        admins,
+        "Admins retrieved successfully"
       );
 
     } catch (error) {
@@ -164,6 +156,16 @@ class AdminAuthController {
         error.message || "Failed to get admins",
         500
       );
+    }
+  }
+
+  async deleteAdmin(req, res, next) {
+    try {
+      const targetAdminId = req.params.id;
+      const deleted = await adminAuthService.deleteAdmin(req.user, targetAdminId);
+      return ResponseFormatter.success(res, deleted, "Admin deleted successfully");
+    } catch (error) {
+      next(error);
     }
   }
 
@@ -180,7 +182,7 @@ class AdminAuthController {
     } catch (error) {
       next(error);
     }
-  } z
+  }
 }
 
 module.exports = new AdminAuthController();

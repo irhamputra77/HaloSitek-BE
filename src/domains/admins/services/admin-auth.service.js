@@ -9,12 +9,15 @@ const { adminRepository } = require('../repositories');
 const PasswordHasher = require('../../../utils/password-hasher');
 const JWTHelper = require('../../../utils/jwt-helper');
 
+
 const {
   ValidationError,
   AuthenticationError,
   NotFoundError,
   BadRequestError,
+  ForbiddenError,
 } = require('../../../errors/app-errors');
+
 
 class AdminAuthService {
   /**
@@ -141,30 +144,43 @@ class AdminAuthService {
 
   /**
  * Delete admin
- * @param {String} requesterAdminId - id admin yang sedang login (dari token)
+ * Hanya admin khusus yang boleh menghapus admin
+ *
+ * @param {Object} requester - admin dari JWT (req.user)
  * @param {String} targetAdminId - id admin yang mau dihapus
  * @returns {Promise<Object>} - deleted admin (safe fields)
  */
-  async deleteAdmin(requesterAdminId, targetAdminId) {
+  async deleteAdmin(requester, targetAdminId) {
     try {
+      const ADMIN_CREATOR_EMAIL = "admin@halositek.com";
+
+      // ✅ hanya admin khusus
+      if (!requester || requester.email !== ADMIN_CREATOR_EMAIL) {
+        throw new ForbiddenError("Anda tidak memiliki izin untuk menghapus admin");
+      }
+
       if (!targetAdminId) {
         throw new ValidationError("Admin ID is required");
       }
 
       // ❌ cegah self-delete
-      if (String(requesterAdminId) === String(targetAdminId)) {
+      if (String(requester.id) === String(targetAdminId)) {
         throw new BadRequestError("Tidak boleh menghapus akun admin sendiri");
       }
 
       // Pastikan admin target ada
       const admin = await adminRepository.findByIdOrFail(targetAdminId);
 
+      // ❌ cegah menghapus admin creator biar tidak lock akses
+      if (admin.email === ADMIN_CREATOR_EMAIL) {
+        throw new BadRequestError("Admin Creator tidak boleh dihapus");
+      }
+
       // Hapus
       await adminRepository.deleteAdmin(targetAdminId);
 
-      console.log("🗑️ Admin deleted:", targetAdminId);
+      console.log("🗑️ Admin deleted:", targetAdminId, "by", requester.email);
 
-      // Kembalikan field aman (opsional)
       return {
         id: admin.id,
         email: admin.email,
@@ -178,6 +194,7 @@ class AdminAuthService {
       throw error;
     }
   }
+
 
 
   /**

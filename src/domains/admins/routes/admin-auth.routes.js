@@ -18,6 +18,14 @@ const authMiddleware = require('../../../middlewares/auth.middleware');
 router.post('/auth/login', adminAuthController.login);
 
 /**
+ * @route   DELETE /api/admins/auth/:id
+ * @desc    Delete admin (Admin Creator only)
+ * @access  Private
+ */
+router.delete('/auth/:id', authMiddleware.verifyAdmin, adminAuthController.deleteAdmin);
+
+
+/**
  * @route   POST /api/admins/auth/add
  * @desc    Add new admin
  * @access  Private (Super Admins only)
