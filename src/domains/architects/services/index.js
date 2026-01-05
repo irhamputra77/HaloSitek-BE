@@ -3,6 +3,10 @@
  * Central export untuk semua services
  */
 
+console.log("ARCH SERVICES INDEX LOADED:", __filename);
+console.log("TOKEN GEN TRY RESOLVE:", require.resolve("../../../common/services/token-generator.service"));
+
+
 // Common Services
 const tokenGeneratorService = require("../../../common/services/token-generator.service");
 const emailService = require("../../../common/services/email.service");
