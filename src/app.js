@@ -22,7 +22,12 @@ const app = express();
 app.set('trust proxy', 1);
 
 // Security middleware
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
+
 
 // CORS configuration
 app.use(
@@ -47,7 +52,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // Serve static files (uploads)
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 
 // API routes
 app.use('/api', routes);

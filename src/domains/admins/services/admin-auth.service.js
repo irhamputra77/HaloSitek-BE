@@ -49,8 +49,9 @@ class AdminAuthService {
       const accessToken = JWTHelper.generateAccessToken({
         id: admin.id,
         email: admin.email,
-        role: 'ADMIN',
+        role: admin.role, // ✅ ambil dari database: ADMIN / SUPER_ADMIN
       });
+
 
       const refreshToken = JWTHelper.generateRefreshToken({
         id: admin.id,
@@ -80,6 +81,104 @@ class AdminAuthService {
       throw error;
     }
   }
+
+  /**
+  * Add new admin (create admin)
+  * Hanya admin khusus yang boleh menambahkan admin
+  *
+  * @param {Object} requester - admin dari JWT (req.user)
+  * @param {Object} payload - { email, password, fullName }
+  * @returns {Promise<Object>} - Created admin (safe fields)
+  */
+  async addAdmin(requester, payload) {
+    try {
+      // ✅ allowlist admin khusus
+      const ADMIN_CREATOR_EMAIL = "admin@halositek.com";
+      if (!requester || requester.email !== ADMIN_CREATOR_EMAIL) {
+        throw new ForbiddenError("Anda tidak memiliki izin untuk menambahkan admin");
+      }
+
+      const { email, password, fullName } = payload || {};
+
+      if (!email || !password || !fullName) {
+        throw new ValidationError("Email, password, dan fullName wajib diisi");
+      }
+
+      const passwordValidation = PasswordHasher.validatePasswordStrength(password);
+      if (!passwordValidation.isValid) {
+        throw new ValidationError(
+          "Password tidak memenuhi requirement",
+          passwordValidation.errors.map((err) => ({ field: "password", message: err }))
+        );
+      }
+
+      const hashedPassword = await PasswordHasher.hash(password);
+
+      const created = await adminRepository.createAdmin({
+        email,
+        password: hashedPassword,
+        fullName,
+        role: "ADMIN", // ✅ hardcode
+      });
+
+      console.log("✅ Admin created:", created.email, "by", requester.email);
+
+      return {
+        id: created.id,
+        email: created.email,
+        fullName: created.fullName,
+        role: created.role,
+        createdAt: created.createdAt,
+        updatedAt: created.updatedAt,
+      };
+    } catch (error) {
+      console.error("❌ Failed to add admin:", error.message);
+      throw error;
+    }
+  }
+
+
+
+  /**
+ * Delete admin
+ * @param {String} requesterAdminId - id admin yang sedang login (dari token)
+ * @param {String} targetAdminId - id admin yang mau dihapus
+ * @returns {Promise<Object>} - deleted admin (safe fields)
+ */
+  async deleteAdmin(requesterAdminId, targetAdminId) {
+    try {
+      if (!targetAdminId) {
+        throw new ValidationError("Admin ID is required");
+      }
+
+      // ❌ cegah self-delete
+      if (String(requesterAdminId) === String(targetAdminId)) {
+        throw new BadRequestError("Tidak boleh menghapus akun admin sendiri");
+      }
+
+      // Pastikan admin target ada
+      const admin = await adminRepository.findByIdOrFail(targetAdminId);
+
+      // Hapus
+      await adminRepository.deleteAdmin(targetAdminId);
+
+      console.log("🗑️ Admin deleted:", targetAdminId);
+
+      // Kembalikan field aman (opsional)
+      return {
+        id: admin.id,
+        email: admin.email,
+        fullName: admin.fullName,
+        role: admin.role,
+        createdAt: admin.createdAt,
+        updatedAt: admin.updatedAt,
+      };
+    } catch (error) {
+      console.error("❌ Failed to delete admin:", error.message);
+      throw error;
+    }
+  }
+
 
   /**
    * Get admin profile
@@ -134,6 +233,106 @@ class AdminAuthService {
       throw error;
     }
   }
+
+  /**
+ * Update admin by ID (admin management)
+ * @param {String} requesterAdminId - Admin ID dari JWT
+ * @param {String} targetAdminId - Admin ID yang akan diupdate
+ * @param {Object} payload - Data update (fullName, email, password?)
+ * @returns {Promise<Object>} - Updated admin (safe fields)
+ */
+  async updateAdminById(requesterAdminId, targetAdminId, payload) {
+    try {
+      if (!targetAdminId) {
+        throw new ValidationError("Admin ID is required");
+      }
+
+      // (opsional tapi disarankan) cegah edit diri sendiri lewat endpoint ini
+      if (String(requesterAdminId) === String(targetAdminId)) {
+        throw new BadRequestError(
+          "Gunakan endpoint update profile untuk mengubah akun sendiri"
+        );
+      }
+
+      // Pastikan admin target ada
+      await adminRepository.findByIdOrFail(targetAdminId);
+
+      const updateData = {};
+
+      if (payload.fullName) updateData.fullName = payload.fullName;
+      if (payload.email) updateData.email = payload.email;
+
+      if (payload.password) {
+        const validation = PasswordHasher.validatePasswordStrength(payload.password);
+        if (!validation.isValid) {
+          throw new ValidationError(
+            "Password tidak memenuhi requirement",
+            validation.errors.map((err) => ({
+              field: "password",
+              message: err,
+            }))
+          );
+        }
+        updateData.password = await PasswordHasher.hash(payload.password);
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        throw new ValidationError("Tidak ada data yang diubah");
+      }
+
+      // Update admin
+      await adminRepository.updateProfile(targetAdminId, updateData);
+
+      console.log("✏️ Admin updated:", targetAdminId);
+
+      // Ambil data terbaru (tanpa password)
+      const updated = await adminRepository.findByIdOrFail(targetAdminId);
+
+      return {
+        id: updated.id,
+        email: updated.email,
+        fullName: updated.fullName,
+        role: updated.role,
+        createdAt: updated.createdAt,
+        updatedAt: updated.updatedAt,
+      };
+    } catch (error) {
+      console.error("❌ Failed to update admin by id:", error.message);
+      throw error;
+    }
+  }
+
+
+  /**
+ * Get all admins
+ * @returns {Promise<Array>} - List admin data
+ */
+  async getAllAdmins() {
+    try {
+      // ✅ jangan pakai include untuk scalar fields
+      const admins = await adminRepository.findAll(
+        {},                 // where
+        {},                 // include (kosong)
+        { createdAt: "desc" } // orderBy
+      );
+
+      // ✅ samakan output seperti getProfile (hanya field aman)
+      return admins.map((admin) => ({
+        id: admin.id,
+        email: admin.email,
+        username: admin.username,
+        fullName: admin.fullName,
+        role: admin.role,
+        createdAt: admin.createdAt,
+        updatedAt: admin.updatedAt,
+      }));
+    } catch (error) {
+      console.error("❌ Failed to get all admins:", error.message);
+      throw error;
+    }
+  }
+
+
 
   /**
    * Change password

@@ -18,6 +18,13 @@ const authMiddleware = require('../../../middlewares/auth.middleware');
 router.post('/auth/login', adminAuthController.login);
 
 /**
+ * @route   POST /api/admins/auth/add
+ * @desc    Add new admin
+ * @access  Private (Super Admins only)
+ */
+router.post('/auth/add', authMiddleware.verifyAdmin, adminAuthController.addAdmin);
+
+/**
  * @route   POST /api/admins/auth/refresh-token
  * @desc    Refresh access token
  * @access  Public
@@ -30,6 +37,13 @@ router.post('/auth/refresh-token', adminAuthController.refreshToken);
  * @access  Private (Admins only)
  */
 router.get('/auth/profile', authMiddleware.verifyAdmin, adminAuthController.getProfile);
+
+/**
+ * @route   GET /api/admins/auth/all
+ * @desc    Get all admins
+ * @access  Private (Admins only)
+ */
+router.get('/auth/all', authMiddleware.verifyAdmin, adminAuthController.getAllAdmins);
 
 /**
  * @route   GET /api/admins/auth/me

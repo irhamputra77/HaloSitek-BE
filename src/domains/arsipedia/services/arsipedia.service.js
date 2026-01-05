@@ -1,12 +1,43 @@
+const path = require("path");
+const fs = require("fs");
 const ArsipediaRepository = require("../repositories/arsipedia.repository");
 
 class ArsipediaService {
 
-  async create(data) {
-    const adminId  = data.adminId;
-    const imagePath = data.imagePath
+  normalizeTagsToJsonString(tags) {
+    if (!tags) return "[]";
 
-    // Validasi adminId
+    // tags dikirim sebagai array
+    if (Array.isArray(tags)) {
+      return JSON.stringify(tags.map(String));
+    }
+
+    // tags dikirim sebagai string
+    if (typeof tags === "string") {
+      const s = tags.trim();
+      if (!s) return "[]";
+
+      // kalau sudah JSON string array
+      try {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed)) return JSON.stringify(parsed.map(String));
+      } catch { }
+
+      // fallback: comma-separated
+      const arr = s
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean);
+      return JSON.stringify(arr);
+    }
+
+    return "[]";
+  }
+
+  async create(data) {
+    const adminId = data.adminId;
+    const imagePath = data.imagePath;
+
     const admin = await ArsipediaRepository.isAdminExist(adminId);
     if (!admin) {
       const error = new Error("Invalid adminId: Admin not found");
@@ -15,11 +46,12 @@ class ArsipediaService {
     }
 
     if (!imagePath) {
-     const error = new Error("Image is required");
-     error.statusCode = 400;
-     throw error;
-   }
+      const error = new Error("Image is required");
+      error.statusCode = 400;
+      throw error;
+    }
 
+    data.tags = await this.normalizeTagsToJsonString(data.tags);
     return await ArsipediaRepository.create(data);
   }
 
@@ -38,12 +70,28 @@ class ArsipediaService {
   }
 
   async update(id, data) {
-    await this.getById(id); // cek dulu
+    await this.getById(id);
+    data.tags = await this.normalizeTagsToJsonString(data.tags);
     return ArsipediaRepository.update(id, data);
   }
 
   async delete(id) {
-    await this.getById(id); // cek data dulu
+    const existing = await this.getById(id);
+
+    if (existing?.imagePath) {
+      const normalized = String(existing.imagePath).replace(/\\/g, "/");
+
+      const absPath = path.resolve(process.cwd(), normalized);
+
+      try {
+        if (fs.existsSync(absPath)) {
+          fs.unlinkSync(absPath);
+        }
+      } catch (err) {
+        console.warn("[ArsipediaService.delete] Failed deleting file:", absPath, err.message);
+      }
+    }
+
     return ArsipediaRepository.delete(id);
   }
 }

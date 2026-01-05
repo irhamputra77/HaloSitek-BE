@@ -31,11 +31,10 @@ class WebhookController {
       // Always return 200 to Midtrans
       return ResponseFormatter.success(res, null, result.message);
     } catch (error) {
-      console.error('❌ Webhook processing error:', error.message);
-      
-      // Still return 200 to Midtrans to prevent retry
-      // But log the error
-      return ResponseFormatter.success(res, null, 'Webhook received but processing failed');
+      // webhook.controller.js (catch)
+      console.error("❌ Webhook processing error:", error);
+      return res.status(500).json({ success: false, message: "processing failed" });
+ 
     }
   }
 

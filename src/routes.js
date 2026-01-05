@@ -18,8 +18,15 @@ const certificationRoutes = require('./domains/architects/routes/certification.r
 const portfolioLinkRoutes = require('./domains/architects/routes/portfolio-link.routes');
 
 const userAuthRoutes = require('./domains/users/routes/user-auth.routes');
+const adminUserRoutes = require('./domains/users/routes/admin-user.routes');
 const adminAuthRoutes = require('./domains/admins/routes/admin-auth.routes');
 const arsipediaRoutes = require('./domains/arsipedia/routes/arsipedia.routes');
+const viewRoutes = require("./domains/views/routes/view.routes");
+
+// NEW: admin architect & admin transaction routes
+const adminArchitectRoutes = require('./domains/architects/routes/architect-admin.routes');
+const adminTransactionRoutes = require('./domains/architects/routes/admin-transaction.routes');
+
 
 // Health check route
 router.get('/health', (req, res) => {
@@ -43,7 +50,15 @@ router.use('/certifications', certificationRoutes);
 router.use('/portfolio-links', portfolioLinkRoutes);
 
 router.use('/users', userAuthRoutes);
+router.use('/admin/users', adminUserRoutes);
+
 router.use('/admins', adminAuthRoutes);
 router.use('/arsipedia', arsipediaRoutes);
+
+router.use('/admin/architects', adminArchitectRoutes);
+router.use('/admin/transactions', adminTransactionRoutes);
+
+router.use("/views", viewRoutes);
+
 
 module.exports = router;

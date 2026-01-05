@@ -30,6 +30,96 @@ class DesignRepository extends BaseRepository {
     }
   }
 
+
+  // =========================
+  // VIEWS (per design)
+  // =========================
+
+  async recordViewByUser(userId, designId) {
+    return prisma.viewedDesignUser.upsert({
+      where: { userId_designId: { userId, designId } },
+      create: { userId, designId, viewedCount: 1 },
+      update: { viewedCount: { increment: 1 } },
+    });
+  }
+
+  async recordViewByArchitect(architectId, designId) {
+    return prisma.viewedDesignArchitect.upsert({
+      where: { architectId_designId: { architectId, designId } },
+      create: { architectId, designId, viewedCount: 1 },
+      update: { viewedCount: { increment: 1 } },
+    });
+  }
+
+  async getViewsSummary(designId) {
+    const [uAgg, aAgg] = await Promise.all([
+      prisma.viewedDesignUser.aggregate({
+        where: { designId },
+        _sum: { viewedCount: true },
+        _count: { _all: true }, // unique viewers (jumlah row)
+      }),
+      prisma.viewedDesignArchitect.aggregate({
+        where: { designId },
+        _sum: { viewedCount: true },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const userViews = uAgg?._sum?.viewedCount || 0;
+    const archViews = aAgg?._sum?.viewedCount || 0;
+
+    const userUnique = uAgg?._count?._all || 0;
+    const archUnique = aAgg?._count?._all || 0;
+
+    return {
+      totalViews: userViews + archViews,
+      uniqueViewers: userUnique + archUnique,
+      breakdown: {
+        users: { views: userViews, unique: userUnique },
+        architects: { views: archViews, unique: archUnique },
+      },
+    };
+  }
+
+  // Optional: untuk list my-designs biar tidak N+1 query
+  async getViewsTotalsMap(designIds = []) {
+    if (!designIds.length) return {};
+
+    const [u, a] = await Promise.all([
+      prisma.viewedDesignUser.groupBy({
+        by: ["designId"],
+        where: { designId: { in: designIds } },
+        _sum: { viewedCount: true },
+        _count: { _all: true },
+      }),
+      prisma.viewedDesignArchitect.groupBy({
+        by: ["designId"],
+        where: { designId: { in: designIds } },
+        _sum: { viewedCount: true },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const map = {};
+    for (const id of designIds) {
+      map[id] = { totalViews: 0, uniqueViewers: 0 };
+    }
+
+    for (const row of u) {
+      map[row.designId] = map[row.designId] || { totalViews: 0, uniqueViewers: 0 };
+      map[row.designId].totalViews += row._sum.viewedCount || 0;
+      map[row.designId].uniqueViewers += row._count._all || 0;
+    }
+
+    for (const row of a) {
+      map[row.designId] = map[row.designId] || { totalViews: 0, uniqueViewers: 0 };
+      map[row.designId].totalViews += row._sum.viewedCount || 0;
+      map[row.designId].uniqueViewers += row._count._all || 0;
+    }
+
+    return map;
+  }
+
   /**
    * Find designs by architect ID
    * @param {String} architectId - Architect ID
@@ -106,34 +196,90 @@ class DesignRepository extends BaseRepository {
   }
 
   /**
+  * Get distinct categories from designs (public)
+  * @returns {Promise<string[]>}
+  */
+  async getDistinctKategori() {
+    try {
+      const rows = await prisma.design.findMany({
+        where: { kategori: { not: null } },
+        select: { kategori: true },
+        distinct: ["kategori"],
+        orderBy: { kategori: "asc" },
+      });
+
+      return rows
+        .map((r) => (r.kategori || "").trim())
+        .filter(Boolean);
+    } catch (error) {
+      throw new DatabaseError(`Failed to fetch categories: ${error.message}`);
+    }
+  }
+
+
+
+  /**
    * Search designs (public)
    * @param {String} searchTerm - Search term
    * @param {Object} options - Query options
    * @returns {Promise<Object>} - { data, pagination }
    */
-  async searchPublic(searchTerm, options = {}) {
-    return await this.findWithPagination({
-      ...options,
-      where: {
+  async searchPublic({ q, kategori, page = 1, limit = 12 }) {
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const AND = [];
+
+    if (q && q.trim()) {
+      const keyword = q.trim();
+      AND.push({
         OR: [
-          { title: { contains: searchTerm, mode: 'insensitive' } },
-          { description: { contains: searchTerm, mode: 'insensitive' } },
-          { kategori: { contains: searchTerm, mode: 'insensitive' } },
+          { title: { contains: keyword, mode: "insensitive" } },
+          { description: { contains: keyword, mode: "insensitive" } },
         ],
-      },
-      include: {
-        architect: {
-          select: {
-            id: true,
-            name: true,
-            profilePictureUrl: true,
-            tahunPengalaman: true,
+      });
+    }
+
+    if (kategori && kategori.trim()) {
+      AND.push({
+        kategori: { equals: kategori.trim(), mode: "insensitive" },
+      });
+    }
+
+    const where = AND.length ? { AND } : {};
+
+    const [data, total] = await Promise.all([
+      prisma.design.findMany({
+        where,
+        skip,
+        take: Number(limit),
+        orderBy: { createdAt: "desc" },
+        include: {
+          architect: {
+            select: {
+              id: true,
+              name: true,
+              profilePictureUrl: true,
+              tahunPengalaman: true,
+              areaPengalaman: true,
+            },
           },
         },
+      }),
+      prisma.design.count({ where }),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        totalPages: Math.ceil(total / Number(limit)),
       },
-      orderBy: options.orderBy || { createdAt: 'desc' },
-    });
+    };
   }
+
+
 
   /**
    * Find designs by category
@@ -145,7 +291,7 @@ class DesignRepository extends BaseRepository {
     return await this.findWithPagination({
       ...options,
       where: {
-        kategori: { contains: kategori, mode: 'insensitive' },
+        kategori: { equals: kategori, mode: 'insensitive' },
       },
       include: {
         architect: {

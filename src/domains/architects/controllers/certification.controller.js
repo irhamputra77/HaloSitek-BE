@@ -7,6 +7,29 @@ const certificationService = require('../services/certification.service');
 const ResponseFormatter = require('../../../utils/response-formatter');
 
 class CertificationController {
+
+  async uploadCertificationTemp(req, res, next) {
+    try {
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ success: false, message: 'File is required' });
+      }
+
+      // Simpan path yang akan kamu taruh ke berkasUrl
+      // (Sesuaikan kalau kamu pakai base URL static)
+      const berkasUrl = file.path.replace(/\\/g, '/');
+
+      return ResponseFormatter.created(
+        res,
+        { berkasUrl, originalName: file.originalname, mimeType: file.mimetype, size: file.size },
+        'File uploaded successfully'
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+
   /**
    * Create new certification
    * POST /api/architects/auth/certifications

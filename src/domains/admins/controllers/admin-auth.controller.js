@@ -129,6 +129,45 @@ class AdminAuthController {
   }
 
   /**
+ * Add new admin
+ * POST /api/admins/auth/add
+ * Protected - Requires JWT token (ADMIN role)
+ */
+  async addAdmin(req, res, next) {
+    try {
+      const admin = await adminAuthService.addAdmin(req.user, req.body);
+      return ResponseFormatter.success(res, admin, "Admin created successfully", 201);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+
+
+  /**
+  * Get all admins
+  */
+  async getAllAdmins(req, res) {
+    try {
+      const admins = await adminAuthService.getAllAdmins();
+
+      return ResponseFormatter.success(
+        res,
+        admins,                         // data dulu
+        "Admins retrieved successfully" // message
+      );
+
+    } catch (error) {
+      console.error("❌ Error getting all admins:", error.message);
+      return ResponseFormatter.error(
+        res,
+        error.message || "Failed to get admins",
+        500
+      );
+    }
+  }
+
+  /**
    * Get Dashboard Statistics
    * GET /api/admins/auth/dashboard
    * Protected - Requires JWT token (ADMIN role)
@@ -141,7 +180,7 @@ class AdminAuthController {
     } catch (error) {
       next(error);
     }
-  }
+  } z
 }
 
 module.exports = new AdminAuthController();

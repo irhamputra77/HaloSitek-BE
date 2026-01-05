@@ -54,11 +54,11 @@ class UserRepository extends BaseRepository {
    */
   async isEmailExists(email, excludeId = null) {
     const where = { email };
-    
+
     if (excludeId) {
       where.id = { not: excludeId };
     }
-    
+
     return await this.exists(where);
   }
 
@@ -70,11 +70,11 @@ class UserRepository extends BaseRepository {
    */
   async isUsernameExists(username, excludeId = null) {
     const where = { username };
-    
+
     if (excludeId) {
       where.id = { not: excludeId };
     }
-    
+
     return await this.exists(where);
   }
 

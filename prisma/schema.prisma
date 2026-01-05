@@ -21,16 +21,16 @@ datasource db {
 // ============================================
 
 enum ArchitectStatus {
-  UNPAID     // Belum bayar - baru registrasi
-  ACTIVE     // Sudah bayar, akun aktif
-  BANNED     // Diblokir oleh admin
+  UNPAID // Belum bayar - baru registrasi
+  ACTIVE // Sudah bayar, akun aktif
+  BANNED // Diblokir oleh admin
 }
 
 enum TransactionStatus {
-  PENDING    // Menunggu pembayaran
-  SUCCESS    // Pembayaran berhasil
-  FAILED     // Pembayaran gagal
-  EXPIRED    // Token/transaksi kadaluarsa (>24 jam)
+  PENDING // Menunggu pembayaran
+  SUCCESS // Pembayaran berhasil
+  FAILED // Pembayaran gagal
+  EXPIRED // Token/transaksi kadaluarsa (>24 jam)
 }
 
 enum PaymentMethod {
@@ -47,38 +47,40 @@ enum PaymentMethod {
 // ============================================
 
 model Architect {
-  id                    String            @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Step 1: Informasi Dasar
-  email                 String            @unique
-  password              String            // Hashed with bcrypt
-  name                  String
-  phone                 String
-  profilePictureUrl     String?           // Path to uploaded file
-  
+  email             String  @unique
+  password          String // Hashed with bcrypt
+  name              String
+  phone             String
+  profilePictureUrl String? // Path to uploaded file
+
   // Step 2: Kualifikasi Profesional
-  tahunPengalaman       Int?              // Tahun pengalaman kerja
-  areaPengalaman        String?           // Area pengalaman kunci (text)
-  keahlianKhusus        String?           // JSON array of tags: ["AutoCAD", "SketchUp", "Revit"]
-  
+  tahunPengalaman Int? // Tahun pengalaman kerja
+  areaPengalaman  String? // Area pengalaman kunci (text)
+  keahlianKhusus  String? // JSON array of tags: ["AutoCAD", "SketchUp", "Revit"]
+
   // Account Status
-  status                ArchitectStatus   @default(UNPAID)
-  emailVerified         Boolean           @default(false)
-  emailVerifiedAt       DateTime?
-  
+  status          ArchitectStatus @default(UNPAID)
+  emailVerified   Boolean         @default(false)
+  emailVerifiedAt DateTime?
+
   // Timestamps
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  certifications        Certification[]   // Multiple certifications
-  portfolioLinks        PortfolioLink[]   // Multiple portfolio URLs
-  transactions          Transaction[]     // Payment history
-  designs               Design[]          // Uploaded designs
-  
-  @@map("architects")
+  certifications         Certification[] // Multiple certifications
+  portfolioLinks         PortfolioLink[] // Multiple portfolio URLs
+  transactions           Transaction[] // Payment history
+  designs                Design[] // Uploaded designs
+  viewedBy               ViewedArsitek[]         @relation("ArchitectViewedBy")
+  viewedDesignArchitects ViewedDesignArchitect[]
+
   @@index([email])
   @@index([status])
+  @@map("architects")
 }
 
 // ============================================
@@ -86,22 +88,22 @@ model Architect {
 // ============================================
 
 model Certification {
-  id                String      @id @default(uuid())
-  architectId       String
-  architect         Architect   @relation(fields: [architectId], references: [id], onDelete: Cascade)
-  
+  id          String    @id @default(uuid())
+  architectId String
+  architect   Architect @relation(fields: [architectId], references: [id], onDelete: Cascade)
+
   // Certification Details
-  certificationName String      // e.g., "Arsitek Berlisensi"
-  penerbit          String      // e.g., "IAI (Ikatan Arsitek Indonesia)"
-  year              Int         // e.g., 2018
-  berkasUrl         String      // Path to uploaded certificate file (PDF/Image)
-  
+  certificationName String // e.g., "Arsitek Berlisensi"
+  penerbit          String // e.g., "IAI (Ikatan Arsitek Indonesia)"
+  year              Int // e.g., 2018
+  berkasUrl         String // Path to uploaded certificate file (PDF/Image)
+
   // Timestamps
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-  
-  @@map("certifications")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([architectId])
+  @@map("certifications")
 }
 
 // ============================================
@@ -109,17 +111,17 @@ model Certification {
 // ============================================
 
 model PortfolioLink {
-  id          String      @id @default(uuid())
+  id          String    @id @default(uuid())
   architectId String
-  architect   Architect   @relation(fields: [architectId], references: [id], onDelete: Cascade)
-  
-  url         String      // e.g., "https://www.behance.net/contoharsitekk"
-  order       Int         @default(0)  // Untuk sorting
-  
-  createdAt   DateTime    @default(now())
-  
-  @@map("portfolio_links")
+  architect   Architect @relation(fields: [architectId], references: [id], onDelete: Cascade)
+
+  url   String // e.g., "https://www.behance.net/contoharsitekk"
+  order Int    @default(0) // Untuk sorting
+
+  createdAt DateTime @default(now())
+
   @@index([architectId])
+  @@map("portfolio_links")
 }
 
 // ============================================
@@ -127,34 +129,34 @@ model PortfolioLink {
 // ============================================
 
 model Transaction {
-  id                String            @id @default(uuid())
-  architectId       String
-  architect         Architect         @relation(fields: [architectId], references: [id], onDelete: Cascade)
-  
+  id          String    @id @default(uuid())
+  architectId String
+  architect   Architect @relation(fields: [architectId], references: [id], onDelete: Cascade)
+
   // Payment Identifiers
-  orderId           String            @unique  // Format: ARCH-{timestamp}-{random}
-  paymentToken      String            @unique  // Token untuk akses payment page
-  snapToken         String?                    // Midtrans Snap Token
-  
+  orderId      String  @unique // Format: ARCH-{timestamp}-{random}
+  paymentToken String  @unique // Token untuk akses payment page
+  snapToken    String? // Midtrans Snap Token
+
   // Payment Details
-  amount            Int               @default(500000)  // Fixed: Rp 500.000
-  status            TransactionStatus @default(PENDING)
-  paymentMethod     PaymentMethod?
-  
+  amount        Int               @default(500000) // Fixed: Rp 500.000
+  status        TransactionStatus @default(PENDING)
+  paymentMethod PaymentMethod?
+
   // Timestamps
-  paidAt            DateTime?         // Kapan pembayaran berhasil
-  expiredAt         DateTime          // Payment link expired (24 jam dari created)
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
+  paidAt    DateTime? // Kapan pembayaran berhasil
+  expiredAt DateTime // Payment link expired (24 jam dari created)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
   // Midtrans Response (JSON untuk debugging)
-  midtransResponse  Json?
-  
-  @@map("transactions")
+  midtransResponse Json?
+
   @@index([architectId])
   @@index([orderId])
   @@index([paymentToken])
   @@index([status])
+  @@map("transactions")
 }
 
 // ============================================
@@ -162,27 +164,30 @@ model Transaction {
 // ============================================
 
 model Design {
-  id              String    @id @default(uuid())
-  architectId     String
-  architect       Architect @relation(fields: [architectId], references: [id], onDelete: Cascade)
-  
+  id          String    @id @default(uuid())
+  architectId String
+  architect   Architect @relation(fields: [architectId], references: [id], onDelete: Cascade)
+
   // Design Details
-  title           String
-  description     String?
-  kategori        String?         // e.g., "Rumah Minimalis"
-  luas_bangunan   String?         // e.g., "120 m²"
-  luas_tanah      String?         // e.g., "200 m²"
-  
+  title         String
+  description   String?
+  kategori      String? // e.g., "Rumah Minimalis"
+  luas_bangunan String? // e.g., "120 m²"
+  luas_tanah    String? // e.g., "200 m²"
+
   // Images (stored as JSON array of URLs)
-  foto_bangunan   String?         // JSON: ["url1", "url2", "url3"]
-  foto_denah      String?         // JSON: ["url1", "url2"]
-  
+  foto_bangunan String? // JSON: ["url1", "url2", "url3"]
+  foto_denah    String? // JSON: ["url1", "url2"]
+
   // Timestamps
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
-  @@map("designs")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  viewedByUsers      ViewedDesignUser[]
+  viewedByArchitects ViewedDesignArchitect[]
+
   @@index([architectId])
+  @@map("designs")
 }
 
 // ============================================
@@ -190,22 +195,73 @@ model Design {
 // ============================================
 
 model User {
-  id                String    @id @default(uuid())
-  email             String    @unique
-  username          String    @unique
+  id                String  @id @default(uuid())
+  email             String  @unique
+  username          String  @unique
   password          String
   fullName          String
   profilePictureUrl String?
-  
-  emailVerified     Boolean   @default(false)
-  emailVerifiedAt   DateTime?
-  
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  
-  @@map("users")
+
+  emailVerified   Boolean   @default(false)
+  emailVerifiedAt DateTime?
+
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  viewedArsipedia ViewedArsipedia[]  @relation("UserViewedArsipedia")
+  viewedArsitek   ViewedArsitek[]    @relation("UserViewedArsitek")
+  viewedDesigns   ViewedDesignUser[]
+
   @@index([email])
   @@index([username])
+  @@map("users")
+}
+
+model ViewedArsipedia {
+  userId      String
+  arsipediaId String
+  viewedCount Int    @default(0)
+
+  user      User      @relation("UserViewedArsipedia", fields: [userId], references: [id], onDelete: Cascade)
+  arsipedia Arsipedia @relation("ArsipediaViewedBy", fields: [arsipediaId], references: [id], onDelete: Cascade)
+
+  @@id([userId, arsipediaId])
+  @@index([arsipediaId])
+}
+
+model ViewedDesignUser {
+  userId      String
+  designId    String
+  viewedCount Int    @default(0)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  design Design @relation(fields: [designId], references: [id], onDelete: Cascade)
+
+  @@id([userId, designId])
+  @@index([designId])
+}
+
+model ViewedDesignArchitect {
+  architectId String
+  designId    String
+  viewedCount Int    @default(0)
+
+  architect Architect @relation(fields: [architectId], references: [id], onDelete: Cascade)
+  design    Design    @relation(fields: [designId], references: [id], onDelete: Cascade)
+
+  @@id([architectId, designId])
+  @@index([designId])
+}
+
+model ViewedArsitek {
+  userId      String
+  architectId String
+  viewedCount Int    @default(0)
+
+  user      User      @relation("UserViewedArsitek", fields: [userId], references: [id], onDelete: Cascade)
+  architect Architect @relation("ArchitectViewedBy", fields: [architectId], references: [id], onDelete: Cascade)
+
+  @@id([userId, architectId])
+  @@index([architectId])
 }
 
 // ============================================
@@ -213,17 +269,18 @@ model User {
 // ============================================
 
 model Admin {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  fullName  String
-  role      String   @default("ADMIN")
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  @@map("admins")
+  id       String @id @default(uuid())
+  email    String @unique
+  password String
+  fullName String
+  role     String @default("ADMIN")
+
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  arsipedia Arsipedia[]
+
   @@index([email])
+  @@map("admins")
 }
 
 // ============================================
@@ -231,19 +288,21 @@ model Admin {
 // ============================================
 
 model Arsipedia {
-  id        String   @id @default(uuid())
-  adminId   String
-  
+  id      String @id @default(uuid())
+  adminId String
+
   title     String
-  content   String   @db.Text  // Long text content
-  status    String   @default("DRAFT") // DRAFT, PUBLISHED
-  tags      String?  // JSON array: ["Desain", "Tips", "Arsitektur"]
+  content   String  @db.Text // Long text content
+  status    String  @default("DRAFT") // DRAFT, PUBLISHED
+  tags      String? // JSON array: ["Desain", "Tips", "Arsitektur"]
   imagePath String
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  @@map("arsipedia")
+
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  admin     Admin             @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  viewedBy  ViewedArsipedia[] @relation("ArsipediaViewedBy")
+
   @@index([status])
   @@index([adminId])
+  @@map("arsipedia")
 }

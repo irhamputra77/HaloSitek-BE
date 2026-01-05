@@ -164,10 +164,12 @@ class AuthMiddleware {
       // Verify token
       const decoded = JWTHelper.verifyToken(token);
 
-      // Check if role is ADMIN
+      // Check if role is ADMIN or SUPER_ADMIN
       if (decoded.role !== 'ADMIN') {
         return ResponseFormatter.forbidden(res, 'Access denied. Admins only.');
       }
+
+
 
       // Attach admin info to request
       req.user = decoded;
@@ -180,6 +182,12 @@ class AuthMiddleware {
       return ResponseFormatter.unauthorized(res, 'Invalid or expired token');
     }
   }
+
+  /**
+ * Verify Super Admin Token
+ * Khusus untuk aksi sensitif admin management (add/edit/delete admin)
+ */
+
 
   /**
    * Optional Authentication

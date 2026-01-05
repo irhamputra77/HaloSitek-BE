@@ -64,6 +64,18 @@ const uploadCertificationFile = upload.single('berkas');
  */
 router.get('/:id', certificationController.getCertificationById);
 
+/**
+ * @route   POST /api/certifications/public/upload
+ * @desc    Upload certification file for registration (no auth)
+ * @access  Public
+ */
+router.post(
+  '/public/upload',
+  uploadCertificationFile,
+  certificationController.uploadCertificationTemp
+);
+
+
 // ============================================
 // PROTECTED ROUTES (Architect only)
 // ============================================

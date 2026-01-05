@@ -8,7 +8,7 @@ const router = express.Router();
 const architectRegistrationController = require('../controllers/architect-registration.controller');
 const { uploadArchitectFiles } = require('../../../middlewares/upload.middleware');
 const RequestValidator = require('../../../middlewares/request-validator.middleware');
-
+const architectPublicController = require("../controllers/architect-public.controller");
 /**
  * @route   POST /api/architects/register
  * @desc    Register new architect
@@ -41,5 +41,11 @@ router.post(
   RequestValidator.validateResendPaymentLink,
   architectRegistrationController.resendPaymentLink
 );
+
+// List/search architect aktif
+router.get("/public", architectPublicController.list);
+
+// Detail architect aktif
+router.get("/public/:id", architectPublicController.detail);
 
 module.exports = router;

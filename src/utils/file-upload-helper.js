@@ -15,15 +15,18 @@ class FileUploadHelper {
    * @returns {Object} - Multer storage configuration
    */
   static getStorage(destination = 'uploads/temp') {
+    const normalizedDestination =
+      destination.startsWith('uploads/')
+        ? destination
+        : path.join('uploads', destination);
     // Ensure upload directory exists
     this.ensureDirectoryExists(destination);
 
     return multer.diskStorage({
       destination: (req, file, cb) => {
-        cb(null, destination);
+        cb(null, normalizedDestination);
       },
       filename: (req, file, cb) => {
-        // Generate unique filename: timestamp-randomstring-originalname
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
         const ext = path.extname(file.originalname);
         const nameWithoutExt = path.basename(file.originalname, ext);
@@ -41,7 +44,7 @@ class FileUploadHelper {
    */
   static imageFilter(req, file, cb) {
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-    
+
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -57,7 +60,7 @@ class FileUploadHelper {
    */
   static documentFilter(req, file, cb) {
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-    
+
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -150,7 +153,7 @@ class FileUploadHelper {
    */
   static getFileUrl(filePath) {
     if (!filePath) return null;
-    
+
     // For local development
     const baseUrl = process.env.BACKEND_URL || 'http://localhost:3000';
     return `${baseUrl}/${filePath}`;

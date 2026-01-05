@@ -11,12 +11,12 @@ class PaymentService {
     this.serverKey = process.env.MIDTRANS_SERVER_KEY;
     this.clientKey = process.env.MIDTRANS_CLIENT_KEY;
     this.isProduction = process.env.MIDTRANS_IS_PRODUCTION === 'true';
-    
+
     // API URLs
     this.snapApiUrl = this.isProduction
       ? 'https://app.midtrans.com/snap/v1/transactions'
       : 'https://app.sandbox.midtrans.com/snap/v1/transactions';
-    
+
     this.coreApiUrl = this.isProduction
       ? 'https://api.midtrans.com/v2'
       : 'https://api.sandbox.midtrans.com/v2';
@@ -101,14 +101,14 @@ class PaymentService {
       };
     } catch (error) {
       console.error('❌ Midtrans Snap API error:', error.response?.data || error.message);
-      
+
       if (error.response) {
         throw new PaymentError(
           `Midtrans error: ${error.response.data?.error_messages?.[0] || 'Unknown error'}`,
           error.response.status
         );
       }
-      
+
       throw new ExternalServiceError('Failed to create payment transaction', 'Midtrans');
     }
   }
@@ -131,11 +131,11 @@ class PaymentService {
       return response.data;
     } catch (error) {
       console.error('❌ Failed to get transaction status:', error.message);
-      
+
       if (error.response?.status === 404) {
         throw new PaymentError('Transaction not found', 404);
       }
-      
+
       throw new ExternalServiceError('Failed to get transaction status', 'Midtrans');
     }
   }
@@ -151,7 +151,7 @@ class PaymentService {
   verifyWebhookSignature(orderId, statusCode, grossAmount, signatureKey) {
     try {
       const crypto = require('crypto');
-      
+
       // Create hash: SHA512(order_id+status_code+gross_amount+server_key)
       const string = `${orderId}${statusCode}${grossAmount}${this.serverKey}`;
       const hash = crypto.createHash('sha512').update(string).digest('hex');
@@ -351,6 +351,36 @@ class PaymentService {
   getClientKey() {
     return this.clientKey;
   }
+
+  mapMidtransToInternalStatus(mid) {
+    const ts = mid?.transaction_status;
+    const fraud = mid?.fraud_status;
+
+    // default
+    let status = "PENDING";
+    let shouldActivate = false;
+
+    if (ts === "settlement") {
+      status = "SUCCESS";
+      shouldActivate = true;
+    } else if (ts === "capture") {
+      if (fraud === "accept") {
+        status = "SUCCESS";
+        shouldActivate = true;
+      } else if (fraud === "challenge") {
+        status = "PENDING";
+      } else {
+        status = "FAILED";
+      }
+    } else if (["deny", "cancel", "expire"].includes(ts)) {
+      status = "FAILED";
+    } else if (ts === "pending") {
+      status = "PENDING";
+    }
+
+    return { status, shouldActivate };
+  }
+
 }
 
 module.exports = new PaymentService();

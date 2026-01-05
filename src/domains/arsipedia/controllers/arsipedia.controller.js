@@ -8,7 +8,7 @@ class ArsipediaController {
       const image = req.file;
       const payload = {
         ...req.body,
-        imagePath: image ? image.path: null,
+        imagePath: image ? image.path : null,
       };
       const result = await ArsipediaService.create(payload);
       return ResponseFormatter.success(res, result, "Arsipedia created");
