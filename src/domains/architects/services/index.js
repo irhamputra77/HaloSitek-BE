@@ -4,7 +4,7 @@
  */
 
 // Common Services
-const tokenGeneratorService = require('../../../common/services/token-generator.service');
+const tokenGeneratorService = require('../../../../common/services/token-generator.service');
 const emailService = require('../../../common/services/email.service');
 const paymentService = require('../../../common/services/payment.service');
 
