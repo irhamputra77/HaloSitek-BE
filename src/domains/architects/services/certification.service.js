@@ -39,7 +39,7 @@ class CertificationService {
         certificationName: certData.certificationName,
         penerbit: certData.penerbit,
         year: parseInt(certData.year),
-        berkasUrl: file.path,
+        berkasUrl: await FileUploadHelper.persistFile(file, "architects/certifications"),
       };
 
       // Create certification
@@ -152,10 +152,11 @@ class CertificationService {
 
       // Handle file update
       if (file) {
-        // Delete old file
-        FileUploadHelper.deleteFile(certification.berkasUrl);
-        data.berkasUrl = file.path;
+        await FileUploadHelper.safeDeleteFile(certification.berkasUrl);
+        data.berkasUrl = await FileUploadHelper.persistFile(file, "architects/certifications");
       }
+
+
 
       // Update certification
       const updated = await certificationRepository.updateCertification(certificationId, data);
@@ -186,7 +187,7 @@ class CertificationService {
       }
 
       // Delete file
-      FileUploadHelper.deleteFile(certification.berkasUrl);
+      await FileUploadHelper.safeDeleteFile(certification.berkasUrl);
 
       // Delete certification
       await certificationRepository.deleteCertification(certificationId);

@@ -12,17 +12,15 @@ class CertificationController {
     try {
       const file = req.file;
       if (!file) {
-        return res.status(400).json({ success: false, message: 'File is required' });
+        return res.status(400).json({ success: false, message: "File is required" });
       }
 
-      // Simpan path yang akan kamu taruh ke berkasUrl
-      // (Sesuaikan kalau kamu pakai base URL static)
-      const berkasUrl = file.path.replace(/\\/g, '/');
+      const berkasUrl = await FileUploadHelper.persistFile(file, "architects/certifications");
 
       return ResponseFormatter.created(
         res,
         { berkasUrl, originalName: file.originalname, mimeType: file.mimetype, size: file.size },
-        'File uploaded successfully'
+        "File uploaded successfully"
       );
     } catch (error) {
       next(error);

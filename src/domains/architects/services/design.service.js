@@ -172,6 +172,14 @@ class DesignService {
       const foto_bangunan = files.foto_bangunan || [];
       const foto_denah = files.foto_denah || [];
 
+      const fotoBangunanPaths = await Promise.all(
+        foto_bangunan.map((f) => FileUploadHelper.persistFile(f, "designs/images"))
+      );
+      const fotoDenahPaths = await Promise.all(
+        foto_denah.map((f) => FileUploadHelper.persistFile(f, "designs/denah"))
+      );
+
+
       // Prepare design data
       const data = {
         title: designData.title,
@@ -179,10 +187,9 @@ class DesignService {
         kategori: designData.kategori || null,
         luas_bangunan: designData.luas_bangunan || null,
         luas_tanah: designData.luas_tanah || null,
-        foto_bangunan: JSON.stringify(foto_bangunan.map(file => file.path)),
-        foto_denah: JSON.stringify(foto_denah.map(file => file.path)),
+        foto_bangunan: JSON.stringify(fotoBangunanPaths.filter(Boolean)),
+        foto_denah: JSON.stringify(fotoDenahPaths.filter(Boolean)),
       };
-
       // Create design
       const design = await designRepository.createForArchitect(architectId, data);
 
@@ -228,6 +235,10 @@ class DesignService {
     const uniqNums = (arr) =>
       Array.from(new Set((arr || []).map((x) => Number(x)).filter((n) => Number.isFinite(n))));
 
+    async function persistList(files, folder) {
+      return await FileUploadHelper.persistFiles(files || [], folder);
+    }
+
     function applyPhotoOps({ oldPaths, newFiles, indices, deleteIndices }) {
       const base = [...oldPaths];
       const toDelete = new Set();
@@ -246,31 +257,21 @@ class DesignService {
       // BACKWARD COMPAT:
       // kalau client tidak ngirim indices, anggap replace-all seperti behaviour lama
       if (!idxArr) {
-        // hapus semua lama
         oldPaths.forEach((p) => toDelete.add(p));
-        // hasilnya hanya file baru
-        return {
-          nextPaths: newFiles.map((f) => f.path),
-          deletedPaths: Array.from(toDelete),
-        };
+        return { nextPaths: newPaths, deletedPaths: Array.from(toDelete) };
       }
 
-      // apply replace / append based on idxArr order
-      newFiles.forEach((file, i) => {
+      newPaths.forEach((url, i) => {
         const targetIdx = Number(idxArr[i]);
-
         if (Number.isFinite(targetIdx) && targetIdx >= 0) {
-          // replace
           if (targetIdx < base.length) {
             if (base[targetIdx]) toDelete.add(base[targetIdx]);
-            base[targetIdx] = file.path;
+            base[targetIdx] = url;
           } else {
-            // kalau index out of range, treat as append
-            base.push(file.path);
+            base.push(url);
           }
         } else {
-          // append
-          base.push(file.path);
+          base.push(url);
         }
       });
 
@@ -295,7 +296,7 @@ class DesignService {
       });
 
       // delete only affected files
-      deletedPaths.forEach((p) => FileUploadHelper.deleteFile(p));
+      deletedPaths.forEach((p) => FileUploadHelper.safeDeleteFile(p));
 
       data.foto_bangunan = JSON.stringify(nextPaths);
     }
@@ -316,7 +317,7 @@ class DesignService {
         deleteIndices: denahDelete,
       });
 
-      deletedPaths.forEach((p) => FileUploadHelper.deleteFile(p));
+      deletedPaths.forEach((p) => FileUploadHelper.safeDeleteFile(p));
 
       data.foto_denah = JSON.stringify(nextPaths);
     }
@@ -332,7 +333,7 @@ class DesignService {
         data.foto_denah = JSON.stringify(nextArr);
       } else {
         // fallback: replace semua
-        oldFotoDenah.forEach((p) => FileUploadHelper.deleteFile(p));
+        oldFotoDenah.forEach((p) => FileUploadHelper.safeDeleteFile(p));
         data.foto_denah = JSON.stringify(files.foto_denah.map((f) => f.path));
       }
     }
@@ -348,8 +349,8 @@ class DesignService {
     const fotoBangunan = this.parseJsonArray(design.foto_bangunan);
     const fotoDenah = this.parseJsonArray(design.foto_denah);
 
-    fotoBangunan.forEach(p => FileUploadHelper.deleteFile(p));
-    fotoDenah.forEach(p => FileUploadHelper.deleteFile(p));
+    fotoBangunan.forEach(p => FileUploadHelper.safeDeleteFile(p));
+    fotoDenah.forEach(p => FileUploadHelper.safeDeleteFile(p));
 
     await designRepository.deleteDesign(designId);
 
@@ -521,12 +522,12 @@ class DesignService {
           });
 
           const { next, deleted } = this.applyIndexedReplace(fotoBangunanArr, newPaths, indices || []);
-          deleted.forEach((p) => FileUploadHelper.deleteFile(p));
+          deleted.forEach((p) => FileUploadHelper.safeDeleteFile(p));
 
           fotoBangunanArr = next;
         } else {
           // backward compat: kalau indices tidak dikirim, replace semua
-          fotoBangunanArr.forEach((p) => FileUploadHelper.deleteFile(p));
+          fotoBangunanArr.forEach((p) => FileUploadHelper.safeDeleteFile(p));
           fotoBangunanArr = newPaths;
         }
 
@@ -544,11 +545,11 @@ class DesignService {
           });
 
           const { next, deleted } = this.applyIndexedReplace(fotoDenahArr, newPaths, indices || []);
-          deleted.forEach((p) => FileUploadHelper.deleteFile(p));
+          deleted.forEach((p) => FileUploadHelper.safeDeleteFile(p));
 
           fotoDenahArr = next;
         } else {
-          fotoDenahArr.forEach((p) => FileUploadHelper.deleteFile(p));
+          fotoDenahArr.forEach((p) => FileUploadHelper.safeDeleteFile(p));
           fotoDenahArr = newPaths;
         }
 
@@ -562,7 +563,7 @@ class DesignService {
       );
       if (Array.isArray(rmBangunan) && rmBangunan.length > 0) {
         const { next, deleted } = this.removeByIndices(fotoBangunanArr, rmBangunan);
-        deleted.forEach((p) => FileUploadHelper.deleteFile(p));
+        deleted.forEach((p) => FileUploadHelper.safeDeleteFile(p));
 
         fotoBangunanArr = next;
         bangunanChanged = true;
@@ -573,7 +574,7 @@ class DesignService {
       );
       if (Array.isArray(rmDenah) && rmDenah.length > 0) {
         const { next, deleted } = this.removeByIndices(fotoDenahArr, rmDenah);
-        deleted.forEach((p) => FileUploadHelper.deleteFile(p));
+        deleted.forEach((p) => FileUploadHelper.safeDeleteFile(p));
 
         fotoDenahArr = next;
         denahChanged = true;

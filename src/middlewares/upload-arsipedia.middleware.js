@@ -1,14 +1,10 @@
-const multer = require('multer');
-const FileUploadHelper = require('../utils/file-upload-helper');
+const multer = require("multer");
+const FileUploadHelper = require("../utils/file-upload-helper");
 
 const uploadArsipediaImage = multer({
-  storage: FileUploadHelper.getStorage('uploads/arsipedia_images'),
+  storage: FileUploadHelper.getStorage(), // ✅ memory storage
   fileFilter: FileUploadHelper.imageFilter,
-  limits: {
-    fileSize: FileUploadHelper.getMaxFileSize(),
-  },
-}).single('image'); // field name = image
+  limits: { fileSize: FileUploadHelper.getMaxFileSize() },
+}).single("image");
 
-module.exports = {
-  uploadArsipediaImage,
-};
+module.exports = { uploadArsipediaImage };

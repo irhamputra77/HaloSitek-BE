@@ -1,223 +1,162 @@
 /**
  * File Upload Utility
- * Konfigurasi Multer untuk handle file uploads
+ * - Serverless-safe: pakai memoryStorage (tidak tulis ke disk)
+ * - persistFile(): upload ke storage eksternal (contoh: Cloudinary)
+ * - safeDeleteFile(): hapus file eksternal (best effort)
  */
 
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const { FileUploadError } = require('../errors/app-errors');
+const multer = require("multer");
+const path = require("path");
+const { FileUploadError } = require("../errors/app-errors");
+
+// ✅ OPTIONAL (RECOMMENDED) Cloudinary
+// npm i cloudinary streamifier
+let cloudinary = null;
+let streamifier = null;
+try {
+  cloudinary = require("cloudinary").v2;
+  streamifier = require("streamifier");
+} catch (_) {
+  // kalau belum install, tetap jalan untuk local (tapi di vercel akan butuh provider)
+}
 
 class FileUploadHelper {
-  /**
-   * Get storage configuration for multer
-   * @param {String} destination - Upload destination folder
-   * @returns {Object} - Multer storage configuration
-   */
-  static getStorage(destination = 'uploads/temp') {
-    const normalizedDestination =
-      destination.startsWith('uploads/')
-        ? destination
-        : path.join('uploads', destination);
-    // Ensure upload directory exists
-    this.ensureDirectoryExists(destination);
-
-    return multer.diskStorage({
-      destination: (req, file, cb) => {
-        cb(null, normalizedDestination);
-      },
-      filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        const ext = path.extname(file.originalname);
-        const nameWithoutExt = path.basename(file.originalname, ext);
-        const filename = `${nameWithoutExt}-${uniqueSuffix}${ext}`;
-        cb(null, filename);
-      },
-    });
+  // =========================
+  // Multer config (SERVERLESS)
+  // =========================
+  static getStorage() {
+    // ✅ Tidak menulis ke filesystem
+    return multer.memoryStorage();
   }
 
-  /**
-   * File filter for images
-   * @param {Object} req - Express request
-   * @param {Object} file - Multer file object
-   * @param {Function} cb - Callback
-   */
   static imageFilter(req, file, cb) {
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new FileUploadError('Only JPEG, JPG, and PNG images are allowed'), false);
-    }
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png"];
+    if (allowedTypes.includes(file.mimetype)) cb(null, true);
+    else cb(new FileUploadError("Only JPEG, JPG, and PNG images are allowed"), false);
   }
 
-  /**
-   * File filter for documents (PDF and images)
-   * @param {Object} req - Express request
-   * @param {Object} file - Multer file object
-   * @param {Function} cb - Callback
-   */
   static documentFilter(req, file, cb) {
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new FileUploadError('Only PDF, JPEG, JPG, and PNG files are allowed'), false);
-    }
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
+    if (allowedTypes.includes(file.mimetype)) cb(null, true);
+    else cb(new FileUploadError("Only PDF, JPEG, JPG, and PNG files are allowed"), false);
   }
 
-  /**
-   * Get max file size from env or default (5MB)
-   * @returns {Number} - Max file size in bytes
-   */
   static getMaxFileSize() {
     return parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024; // 5MB
   }
 
-  /**
-   * Create multer upload middleware for profile pictures
-   * @returns {Object} - Multer middleware
-   */
-  static createProfilePictureUpload() {
-    return multer({
-      storage: this.getStorage('uploads/architects/profile-pictures'),
-      fileFilter: this.imageFilter,
-      limits: {
-        fileSize: this.getMaxFileSize(),
-      },
-    }).single('profilePicture'); // Field name: profilePicture
+  // =========================
+  // URL helper
+  // =========================
+  static getFileUrl(filePathOrUrl) {
+    if (!filePathOrUrl) return null;
+
+    // ✅ kalau sudah URL penuh, balikin apa adanya
+    const s = String(filePathOrUrl);
+    if (/^https?:\/\//i.test(s)) return s;
+
+    // local dev: serve static dari BACKEND_URL
+    const baseUrl = process.env.BACKEND_URL || "http://localhost:3000";
+    const normalized = s.replace(/\\/g, "/").replace(/^\/+/, "");
+    return `${baseUrl}/${normalized}`;
   }
 
-  /**
-   * Create multer upload middleware for certifications
-   * @returns {Object} - Multer middleware
-   */
-  static createCertificationUpload() {
-    return multer({
-      storage: this.getStorage('uploads/architects/certifications'),
-      fileFilter: this.documentFilter,
-      limits: {
-        fileSize: this.getMaxFileSize(),
-      },
-    }).array('certifications', 10); // Max 10 certifications
+  // =========================
+  // Persist to external storage
+  // =========================
+  static initCloudinaryIfNeeded() {
+    if (!cloudinary) return false;
+    if (!process.env.CLOUDINARY_CLOUD_NAME) return false;
+
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+    });
+    return true;
   }
 
-  /**
-   * Create multer upload middleware for design images
-   * @returns {Object} - Multer middleware
-   */
-  static createDesignImageUpload() {
-    return multer({
-      storage: this.getStorage('uploads/designs/images'),
-      fileFilter: this.imageFilter,
-      limits: {
-        fileSize: this.getMaxFileSize(),
-      },
-    }).array('images', 20); // Max 20 images
-  }
+  static async persistFile(file, folder) {
+    if (!file) return null;
 
-  /**
-   * Ensure directory exists, create if not
-   * @param {String} directory - Directory path
-   */
-  static ensureDirectoryExists(directory) {
-    if (!fs.existsSync(directory)) {
-      fs.mkdirSync(directory, { recursive: true });
+    // ✅ jika file sudah berupa URL (misal dari client), balikin
+    if (typeof file === "string" && /^https?:\/\//i.test(file)) return file;
+
+    // file dari multer.memoryStorage -> ada buffer
+    if (!file.buffer) {
+      throw new Error(
+        "Uploaded file has no buffer. Pastikan multer pakai memoryStorage(), bukan diskStorage()."
+      );
     }
+
+    // ✅ Cloudinary upload (recommended untuk Vercel)
+    const canUseCloudinary = this.initCloudinaryIfNeeded();
+    if (!canUseCloudinary || !streamifier) {
+      throw new Error(
+        "Storage eksternal belum dikonfigurasi. Install cloudinary + streamifier dan set env CLOUDINARY_*."
+      );
+    }
+
+    const ext = path.extname(file.originalname || "");
+    const isPdf = file.mimetype === "application/pdf" || ext.toLowerCase() === ".pdf";
+
+    const uploadResult = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: folder || "uploads",
+          resource_type: isPdf ? "raw" : "image",
+        },
+        (err, result) => (err ? reject(err) : resolve(result))
+      );
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    });
+
+    return uploadResult.secure_url; // ✅ simpan URL ini ke DB
   }
 
-  /**
-   * Delete file from filesystem
-   * @param {String} filePath - Path to file
-   * @returns {Boolean} - True if deleted, false otherwise
-   */
-  static deleteFile(filePath) {
+  static async persistFiles(files, folder) {
+    const arr = Array.isArray(files) ? files : [];
+    const urls = [];
+    for (const f of arr) {
+      const url = await this.persistFile(f, folder);
+      if (url) urls.push(url);
+    }
+    return urls;
+  }
+
+  // =========================
+  // Safe delete (best effort)
+  // =========================
+  static extractCloudinaryPublicId(url) {
+    // contoh: https://res.cloudinary.com/<cloud>/<type>/upload/v123/folder/name.jpg
+    const s = String(url || "");
+    const m = s.match(/\/upload\/(?:v\d+\/)?(.+)\.[a-zA-Z0-9]+$/);
+    return m ? m[1] : null;
+  }
+
+  static async safeDeleteFile(fileUrl) {
+    if (!fileUrl) return;
+
+    if (!cloudinary || !process.env.CLOUDINARY_CLOUD_NAME) return;
+
+    const publicId = this.extractCloudinaryPublicId(fileUrl);
+    if (!publicId) return;
+
+    // best-effort: coba image dulu, kalau gagal coba raw
     try {
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Error deleting file:', error);
-      return false;
+      await cloudinary.uploader.destroy(publicId, { resource_type: "image" });
+    } catch (_) {
+      try {
+        await cloudinary.uploader.destroy(publicId, { resource_type: "raw" });
+      } catch (_) { }
     }
   }
 
-  /**
-   * Get file URL for response
-   * @param {String} filePath - Relative file path
-   * @returns {String} - Full URL to file
-   */
-  static getFileUrl(filePath) {
-    if (!filePath) return null;
-
-    // For local development
-    const baseUrl = process.env.BACKEND_URL || 'http://localhost:3000';
-    return `${baseUrl}/${filePath}`;
-  }
-
-  /**
-   * Validate file exists
-   * @param {String} filePath - Path to file
-   * @returns {Boolean} - True if exists, false otherwise
-   */
-  static fileExists(filePath) {
-    return fs.existsSync(filePath);
-  }
-
-  /**
-   * Get file size in bytes
-   * @param {String} filePath - Path to file
-   * @returns {Number|null} - File size in bytes or null if not found
-   */
-  static getFileSize(filePath) {
-    try {
-      if (this.fileExists(filePath)) {
-        const stats = fs.statSync(filePath);
-        return stats.size;
-      }
-      return null;
-    } catch (error) {
-      return null;
-    }
-  }
-
-  /**
-   * Format file size to human-readable format
-   * @param {Number} bytes - File size in bytes
-   * @returns {String} - Formatted file size (e.g., "2.5 MB")
-   */
-  static formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-  }
-
-  /**
-   * Move uploaded file to different directory
-   * @param {String} sourcePath - Current file path
-   * @param {String} destinationPath - New file path
-   * @returns {Boolean} - True if successful, false otherwise
-   */
-  static moveFile(sourcePath, destinationPath) {
-    try {
-      // Ensure destination directory exists
-      const destDir = path.dirname(destinationPath);
-      this.ensureDirectoryExists(destDir);
-
-      fs.renameSync(sourcePath, destinationPath);
-      return true;
-    } catch (error) {
-      console.error('Error moving file:', error);
-      return false;
-    }
+  // backward compat (kalau masih ada pemanggilan lama)
+  static deleteFile(fileUrl) {
+    // jangan crash, jalankan best-effort async
+    this.safeDeleteFile(fileUrl).catch(() => { });
+    return true;
   }
 }
 

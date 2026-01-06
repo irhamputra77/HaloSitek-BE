@@ -1,6 +1,8 @@
 const path = require("path");
 const fs = require("fs");
 const ArsipediaRepository = require("../repositories/arsipedia.repository");
+const FileUploadHelper = require("../../../utils/file-upload-helper");
+
 
 class ArsipediaService {
 
@@ -34,9 +36,8 @@ class ArsipediaService {
     return "[]";
   }
 
-  async create(data) {
+  async create(data, imageFile) {
     const adminId = data.adminId;
-    const imagePath = data.imagePath;
 
     const admin = await ArsipediaRepository.isAdminExist(adminId);
     if (!admin) {
@@ -45,20 +46,29 @@ class ArsipediaService {
       throw error;
     }
 
-    if (!imagePath) {
+    if (!imageFile) {
       const error = new Error("Image is required");
       error.statusCode = 400;
       throw error;
     }
 
+    // ✅ simpan sebagai URL cloud / path lokal
+    data.imagePath = await FileUploadHelper.persistFile(imageFile, "arsipedia_images");
+
     data.tags = await this.normalizeTagsToJsonString(data.tags);
     return await ArsipediaRepository.create(data);
   }
 
-  async getAll() {
-    return ArsipediaRepository.getAll();
-  }
 
+  async delete(id) {
+    const existing = await this.getById(id);
+
+    if (existing?.imagePath) {
+      await FileUploadHelper.safeDeleteFile(existing.imagePath);
+    }
+
+    return ArsipediaRepository.delete(id);
+  }
   async getById(id) {
     const data = await ArsipediaRepository.getById(id);
     if (!data) {

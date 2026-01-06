@@ -13,25 +13,22 @@ class UserAuthController {
    */
   async register(req, res, next) {
     try {
-      const profilePicture = req.file;
+      const file = req.file;
 
-      // Prepare registration data
       const registrationData = {
         email: req.body.email,
         username: req.body.username,
         password: req.body.password,
         fullName: req.body.fullName,
-        profilePictureUrl: profilePicture ? profilePicture.path : null,
       };
 
-      // Call service
-      const result = await userAuthService.register(registrationData);
-
+      const result = await userAuthService.register(registrationData, file);
       return ResponseFormatter.created(res, result.data, result.message);
     } catch (error) {
       next(error);
     }
   }
+
 
   /**
    * Login

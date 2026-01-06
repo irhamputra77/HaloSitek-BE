@@ -1,15 +1,19 @@
 const ArsipediaService = require("../services/arsipedia.service");
 const ResponseFormatter = require("../../../utils/response-formatter");
+const FileUploadHelper = require("../../../utils/file-upload-helper");
 
 class ArsipediaController {
+
 
   async create(req, res, next) {
     try {
       const image = req.file;
+
       const payload = {
         ...req.body,
-        imagePath: image ? image.path : null,
+        imagePath: image ? await FileUploadHelper.persistFile(image, "arsipedia_images") : null,
       };
+
       const result = await ArsipediaService.create(payload);
       return ResponseFormatter.success(res, result, "Arsipedia created");
     } catch (err) {
