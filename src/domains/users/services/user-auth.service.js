@@ -43,13 +43,19 @@ class UserAuthService {
       // Hash password
       const hashedPassword = await PasswordHasher.hash(registrationData.password);
 
+      let profilePictureUrl = registrationData.profilePictureUrl || null;
+
+      if (file) {
+        profilePictureUrl = await FileUploadHelper.persistFile(file, "users/profile-pictures");
+      }
+
       // Prepare user data
       const userData = {
         email: registrationData.email,
         username: registrationData.username,
         password: hashedPassword,
         fullName: registrationData.fullName,
-        profilePictureUrl: registrationData.profilePictureUrl || null,
+        profilePictureUrl,
         emailVerified: false,
       };
 
@@ -255,27 +261,32 @@ class UserAuthService {
       if (profileData.email) updateData.email = profileData.email;
       if (profileData.username) updateData.username = profileData.username;
 
-      // Handle profile picture upload
+      // ✅ Handle profile picture upload (serverless-safe)
       if (file) {
-        // Delete old profile picture if exists
+        // Delete old profile picture if exists (best-effort)
         if (user.profilePictureUrl) {
-          FileUploadHelper.deleteFile(user.profilePictureUrl);
+          await FileUploadHelper.safeDeleteFile(user.profilePictureUrl);
         }
-        updateData.profilePictureUrl = file.path;
+
+        // Upload new one -> get URL (cloud) OR path (local)
+        const url = await FileUploadHelper.persistFile(file, "users/profile-pictures");
+
+        updateData.profilePictureUrl = url;
       }
 
       // Update user
-      const updatedUser = await userRepository.updateProfile(userId, updateData);
+      await userRepository.updateProfile(userId, updateData);
 
-      console.log('✅ Profile updated:', userId);
+      console.log("✅ Profile updated:", userId);
 
       // Return updated profile
       return await this.getProfile(userId);
     } catch (error) {
-      console.error('❌ Failed to update profile:', error.message);
+      console.error("❌ Failed to update profile:", error.message);
       throw error;
     }
   }
+
 
   /**
    * Change password

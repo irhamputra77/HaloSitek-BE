@@ -24,9 +24,40 @@ class FileUploadHelper {
   // =========================
   // Multer config (SERVERLESS)
   // =========================
-  static getStorage() {
-    // ✅ Tidak menulis ke filesystem
-    return multer.memoryStorage();
+
+  static isReadOnlyFs() {
+    return (
+      process.env.VERCEL === "1" ||
+      process.env.VERCEL === "true" ||
+      process.env.SERVERLESS === "true" ||
+      process.env.READ_ONLY_FS === "true" ||
+      process.env.NODE_ENV === "production"
+    );
+  }
+  static getStorage(destination = "uploads/temp") {
+    // ✅ di Vercel: jangan diskStorage
+    if (this.isReadOnlyFs()) {
+      return multer.memoryStorage();
+    }
+
+    const normalizedDestination =
+      destination.startsWith("uploads/")
+        ? destination
+        : path.join("uploads", destination);
+
+    // ✅ perbaiki: ensureDirectoryExists harus pakai normalizedDestination
+    this.ensureDirectoryExists(normalizedDestination);
+
+    return multer.diskStorage({
+      destination: (req, file, cb) => cb(null, normalizedDestination),
+      filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+        const ext = path.extname(file.originalname);
+        const nameWithoutExt = path.basename(file.originalname, ext);
+        const safeName = nameWithoutExt.replace(/[^a-zA-Z0-9]/g, "-");
+        cb(null, `${safeName}-${uniqueSuffix}${ext}`);
+      },
+    });
   }
 
   static imageFilter(req, file, cb) {
