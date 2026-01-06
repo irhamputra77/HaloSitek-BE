@@ -2,50 +2,18 @@
  * Design Routes
  * Routes untuk design management (Katalog Desain)
  */
-
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const multer = require("multer");
 
-const designController = require('../controllers/design.controller');
-const authMiddleware = require('../../../middlewares/auth.middleware');
+const designController = require("../controllers/design.controller");
+const authMiddleware = require("../../../middlewares/auth.middleware");
+const FileUploadHelper = require("../../../utils/file-upload-helper");
 
-// Configure multer for design images
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    let uploadPath = 'uploads/designs/images';
-
-    // Ensure directory exists
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    const nameWithoutExt = path.basename(file.originalname, ext);
-    const sanitizedName = nameWithoutExt.replace(/[^a-zA-Z0-9]/g, '-');
-    cb(null, `${sanitizedName}-${uniqueSuffix}${ext}`);
-  },
-});
-
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Only JPEG, JPG, and PNG images are allowed'), false);
-  }
-};
-
+// ✅ Serverless-safe: memory storage (NO write to /uploads)
 const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
+  storage: multer.memoryStorage(),
+  fileFilter: FileUploadHelper.imageFilter,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB
   },
@@ -53,8 +21,8 @@ const upload = multer({
 
 // Upload configuration for design images
 const uploadDesignImages = upload.fields([
-  { name: 'foto_bangunan', maxCount: 10 },
-  { name: 'foto_denah', maxCount: 10 },
+  { name: "foto_bangunan", maxCount: 10 },
+  { name: "foto_denah", maxCount: 10 },
 ]);
 
 // ============================================
@@ -68,11 +36,7 @@ router.put(
   designController.adminUpdateDesign
 );
 
-router.delete(
-  '/admin/:id',
-  authMiddleware.verifyAdmin,
-  designController.adminDeleteDesign
-);
+router.delete("/admin/:id", authMiddleware.verifyAdmin, designController.adminDeleteDesign);
 
 /**
  * @route   GET /api/designs/meta/categories
@@ -132,13 +96,13 @@ router.get('/:id', authMiddleware.optionalAuth, designController.getDesignById);
  * @desc    Create new design
  * @access  Private (Architect only)
  */
+
 router.post(
-  '/architect/my-designs',
+  "/architect/my-designs",
   authMiddleware.verifyArchitect,
   uploadDesignImages,
   designController.createDesign
 );
-
 /**
  * @route   GET /api/designs/architect/my-designs
  * @desc    Get my designs
