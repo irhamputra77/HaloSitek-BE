@@ -106,12 +106,4 @@ class ArsipediaService {
   }
 }
 
-const service = new ArsipediaService();
-
-module.exports.create = service.create.bind(service);
-module.exports.getAll = service.getAll.bind(service);
-module.exports.getById = service.getById.bind(service);
-module.exports.update = service.update.bind(service);
-module.exports.delete = service.delete.bind(service);
-module.exports.normalizeTagsToJsonString = service.normalizeTagsToJsonString.bind(service);
-
+module.exports = new ArsipediaService();
