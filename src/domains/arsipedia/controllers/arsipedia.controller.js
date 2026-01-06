@@ -2,6 +2,15 @@ const ArsipediaService = require("../services/arsipedia.service");
 const ResponseFormatter = require("../../../utils/response-formatter");
 const FileUploadHelper = require("../../../utils/file-upload-helper");
 
+
+const ArsipediaService = require("../services/arsipedia.service");
+
+console.log("[DEBUG ArsipediaService]", {
+  type: typeof ArsipediaService,
+  keys: ArsipediaService ? Object.keys(ArsipediaService) : null,
+  hasGetAll: !!(ArsipediaService && ArsipediaService.getAll),
+});
+
 class ArsipediaController {
 
 
