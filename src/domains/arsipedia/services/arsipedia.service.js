@@ -106,4 +106,12 @@ class ArsipediaService {
   }
 }
 
-module.exports = new ArsipediaService();
+const service = new ArsipediaService();
+
+module.exports.create = (...args) => service.create(...args);
+module.exports.getAll = (...args) => service.getAll(...args);
+module.exports.getById = (...args) => service.getById(...args);
+module.exports.update = (...args) => service.update(...args);
+module.exports.delete = (...args) => service.delete(...args);
+module.exports.normalizeTagsToJsonString = (...args) => service.normalizeTagsToJsonString(...args);
+
